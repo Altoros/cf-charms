@@ -5,4 +5,8 @@
 # failing to account for a debconf question on a dependency, or trying to pull
 # from github without installing git first.
 
+set -xe
+
+add-apt-repository ppa:cf-charm/ppa
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4C430C3C2828E07D
 apt-get install -y cf-cloud-controller
