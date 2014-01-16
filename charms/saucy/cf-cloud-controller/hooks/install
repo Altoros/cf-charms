@@ -10,4 +10,4 @@ set -xe
 add-apt-repository ppa:cf-charm/ppa
 apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4C430C3C2828E07D
 apt-get update
-apt-get install -y cfcloudcontroller
+apt-get install -y cfcloudcontroller cfcloudcontrollerjob
