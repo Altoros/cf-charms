@@ -16,7 +16,8 @@ requires:
   db:
     interface: pgsql
   nats:
-    interface: nats	
+    interface: nats
 #peers:
 #  peer-relation:
 #    interface: interface-name
+
