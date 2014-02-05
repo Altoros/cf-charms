@@ -1,0 +1,18 @@
+#!/bin/bash
+#
+
+set -xe
+
+export CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
+export CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
+RUN_DIR=/var/vcap/sys/run/cloud_controller_ng
+LOG_DIR=/var/vcap/sys/log/nats
+TMPDIR=/var/vcap/data/cloud_controller_ng/tmp
+PIDFILE=$RUN_DIR/cloud_controller_ng.pid
+NFS_SHARE=/var/vcap/nfs
+
+mkdir -p $RUN_DIR
+mkdir -p $LOG_DIR
+mkdir -p $TMPDIR
+
+mkdir -p /var/vcap/nfs/shared
