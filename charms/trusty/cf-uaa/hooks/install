@@ -5,10 +5,4 @@
 # failing to account for a debconf question on a dependency, or trying to pull
 # from github without installing git first.
 
-set -xe
-
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4C430C3C2828E07D
-add-apt-repository ppa:cf-charm/ppa
-apt-get update
-#apt-get install -y libgd3 libjbig0 libjpeg-turbo8 libjpeg8 libtiff5 libvpx1 nginx nginx-common nginx-full libgd-tools nginx-doc fcgiwrap
-apt-get install -y cfcloudcontroller cfcloudcontrollerjob
+apt-get install -y cf-uaa

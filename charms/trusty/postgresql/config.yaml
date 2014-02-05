@@ -1,0 +1,402 @@
+options:
+  admin_addresses:
+    default: ""
+    type: string
+    description: |
+      A comma-separated list of IP Addresses (or single IP) admin tools like 
+      pgAdmin3 will connect from, this is most useful for developers running 
+      juju in local mode who need to connect tools like pgAdmin to a postgres. 
+      The IP addresses added here will be included in the pg_hba.conf file 
+      allowing ip connections to all databases on the server from the given 
+      using md5 password encryption.
+  locale:
+    default: "C"
+    type: string
+    description: |
+      Locale of service, defining language, default collation order,
+      and default formatting of numbers, currency, dates & times. Can only be
+      set when deploying the first unit of a service.
+  encoding:
+    default: "UTF-8"
+    type: string
+    description: |
+      Default encoding used to store text in this service. Can only be
+      set when deploying the first unit of a service.
+  extra-packages:
+    default: ""
+    type: string
+    description: Extra packages to install on the postgresql service units.
+  dumpfile_location:
+    default: "None"
+    type: string
+    description: |
+        Path to a dumpfile to load into DB when service is initiated.
+  config_change_command:
+    default: "reload"
+    type: string
+    description: |
+        The command to run whenever config has changed. Accepted values are
+        "reload" or "restart" - any other value will mean neither is executed
+        after a config change (which may be desired, if you're running a
+        production server and would rather handle these out of band). Note that
+        postgresql will still need to be reloaded whenever authentication and
+        access details are updated, so disabling either doesn't mean PostgreSQL
+        will never be reloaded.
+  version:
+    default: ""
+    type: string
+    description: Version of PostgreSQL that we want to install
+  cluster_name:
+    default: "main"
+    type: string
+    description: Name of the cluster we want to install the DBs into
+  listen_ip:
+    default: "*"
+    type: string
+    description: IP to listen on
+  listen_port:
+    default: 5432
+    type: int
+    description: Port to listen on
+  max_connections:
+    default: 100
+    type: int
+    description: Maximum number of connections to allow to the PG database
+  ssl:
+    default: "True"
+    type: string
+    description: Whether PostgreSQL should talk SSL
+  log_min_duration_statement:
+    default: -1
+    type: int
+    description: |
+        -1 is disabled, 0 logs all statements
+        and their durations, > 0 logs only
+        statements running at least this number
+        of milliseconds
+  log_checkpoints:
+    default: False
+    type: boolean
+    description: Log checkpoints
+  log_connections:
+    default: False
+    type: boolean
+    description: Log connections
+  log_disconnections:
+    default: False
+    type: boolean
+    description: Log disconnections
+  log_line_prefix:
+    default: "%t "
+    type: string
+    description: |
+        special values:
+          %a = application name
+          %u = user name
+          %d = database name
+          %r = remote host and port
+          %h = remote host
+          %p = process ID
+          %t = timestamp without milliseconds
+          %m = timestamp with milliseconds
+          %i = command tag
+          %e = SQL state
+          %c = session ID
+          %l = session line number
+          %s = session start timestamp
+          %v = virtual transaction ID
+          %x = transaction ID (0 if none)
+          %q = stop here in non-session processes
+          %% = '%'
+        e.g. '<%u%%%d> '
+  log_lock_waits:
+    default: False
+    type: boolean
+    description: log lock waits >= deadlock_timeout
+  log_timezone:
+    default: "UTC"
+    type: string
+    description: Log timezone
+  autovacuum:
+    default: True
+    type: boolean
+    description: Autovacuum should almost always be running.
+  log_autovacuum_min_duration:
+    default: -1
+    type: int
+    description: |
+        -1 disables, 0 logs all actions and their durations, > 0 logs only
+        actions running at least this number of milliseconds.
+  autovacuum_analyze_threshold:
+    default: 50
+    type: int
+    description: min number of row updates before analyze
+  autovacuum_vacuum_scale_factor:
+    default: 0.2
+    type: float
+    description: Fraction of table size before vacuum
+  autovacuum_analyze_scale_factor:
+    default: 0.1  
+    type: float
+    description: Fraction of table size before analyze
+  autovacuum_vacuum_cost_delay:
+    default: "20ms"
+    type: string
+    description: |
+        Default vacuum cost delay for autovacuum, in milliseconds;
+        -1 means use vacuum_cost_delay
+  search_path:
+    default: "\"$user\",public"
+    type: string
+    description: |
+        Comma separated list of schema names for
+        the default SQL search path.
+  standard_conforming_strings:
+    default: True
+    type: boolean
+    description: Standard conforming strings
+  hot_standby:
+    default: False
+    type: boolean
+    description: |
+        Hot standby or warm standby. When True, queries can be run against
+        the database when in recovery or standby mode (ie. replicated).
+        Overridden by juju when master/slave relations are used.
+  hot_standby_feedback:
+    default: False
+    type: boolean
+    description: |
+        Hot standby feedback, informing a master about in progress
+        transactions on a streaming hot standby and allowing the master to
+        defer cleanup and avoid query cancelations on the hot standby.
+  wal_level:
+    default: minimal
+    type: string
+    description: |
+        'minimal', 'archive' or 'hot_standby'. Defines how much information
+        is written to the WAL. Set to 'minimal' for stand alone databases
+        and 'hot_standby' for replicated setups. Overridden by juju when
+        replication s used.
+  max_wal_senders:
+    default: 0
+    type: int
+    description: |
+        Maximum number of hot standbys that can connect using
+        streaming replication. Set this to the expected maximum number of
+        hot standby units to avoid unnecessary blocking and database restarts.
+        Overridden by juju if necessary.
+  wal_keep_segments:
+    default: 0
+    type: int
+    description: |
+        Number of old WAL files to keep, providing a larger buffer for
+        streaming hot standbys to catch up from when lagged. Each WAL file
+        is 16MB in size. The WAL files are the buffer of how far a
+        hot standby can lag behind the master, and replication fails if
+        this buffer is overrun. When this service is replicated, the larger
+        value of wal_keep_segments and replicated_wal_keep_segments is used.
+  replicated_wal_keep_segments:
+    default: 5000
+    type: int
+    description: |
+        Value of wal_keep_segments used when this service is replicated.
+        This setting only exists to provide a sane default when replication
+        is requested (so it doesn't fail) and nobody bothered to change the
+        wal_keep_segments setting.
+  archive_mode:
+    default: False
+    type: boolean
+    description: |
+        Enable archiving of WAL files using the command specified by
+        archive_command. If archive_mode is enabled and archive_command not
+        set, then archiving is deferred until archive_command is set and the
+        WAL files will accumulate.
+  archive_command:
+    default: ""
+    type: string
+    description: |
+        Command used to archive WAL files when archive_mode is set and
+        wal_level > minimal.
+  work_mem:
+    default: "1MB"
+    type: string
+    description: Working Memory
+  maintenance_work_mem:
+    default: "1MB"
+    type: string
+    description: Maintenance working memory
+  performance_tuning:
+    default: "auto"
+    type: string
+    description: |
+        Possible values here are "auto" or "manual". If we set "auto" then the
+        charm will attempt to automatically tune all the performance parameters
+        for kernel_shmall, kernel_shmmax, shared_buffers and
+        effective_cache_size below, unless those config values are explicitly
+        set. If manual, then it will use the defaults below unless set.
+        "auto" gathers information about the node on which you are deployed and
+        tries to make intelligent guesses about what tuning parameters to set
+        based on available RAM and CPU under the assumption that it's the only
+        significant service running on this node.
+  kernel_shmall:
+    default: 0
+    type: int
+    description: Total amount of shared memory available, in bytes.
+  kernel_shmmax:
+    default: 0
+    type: int
+    description: The maximum size, in bytes, of a shared memory segment.
+  shared_buffers:
+    default: ""
+    type: string
+    description: |
+        The amount of memory the database server uses for shared memory
+        buffers. This string should be of the format '###MB'.
+  effective_cache_size:
+    default: ""
+    type: string
+    description: |
+        Effective cache size is an estimate of how much memory is available for
+        disk caching within the database. (50% to 75% of system memory). This
+        string should be of the format '###MB'.
+  temp_buffers:
+    default: "1MB"
+    type: string
+    description: |
+        The maximum number of temporary buffers used by each database session.
+  wal_buffers:
+    default: "-1"
+    type: string
+    description: |
+        min 32kB, -1 sets based on shared_buffers (change requires restart)
+  checkpoint_segments:
+    default: 3
+    type: int
+    description: in logfile segments, min 1, 16MB each
+  random_page_cost:
+    default: 4.0
+    type: float
+    description: Random page cost
+  #------------------------------------------------------------------------
+  # Volume management
+  #   volume-map, volume-dev_regexp are only used 
+  #   if volume-ephemeral-storage == False
+  #------------------------------------------------------------------------
+  volume-ephemeral-storage:
+    type: boolean
+    default: true
+    description: >
+      If false, a configure-error state will be raised if
+         volume-map[$JUJU_UNIT_NAME] is not set (see "volume-map"
+         below) - see "volume-map" below.
+      If true, service units won't try to use "volume-map" (and
+         related variables) to mount and use external (EBS) volumes,
+         thus storage lifetime will equal VM, thus ephemeral.
+         YOU'VE BEEN WARNED.
+  volume-map:
+    type: string
+    default: ""
+    description: >
+      YAML map as e.g. "{ postgres/0: vol-0000010, postgres/1: vol-0000016 }".
+      Service units will raise a "configure-error" condition if no volume-map
+      value is set for it - it's expected a human to set it properly to
+      resolve it.
+  volume-dev-regexp:
+    type: string
+    default: "/dev/vd[b-z]"
+    description: >
+      Block device for attached volumes as seen by the VM, will be "scanned"
+      for an unused device when "volume-map" is valid for the unit.
+  backup_dir:
+    default: "/var/lib/postgresql/backups"
+    type: string
+    description: Directory to place backups in
+  backup_schedule:
+    default: "13 4 * * *"
+    type: string
+    description: Cron-formatted schedule for database backups.
+  backup_retention_count:
+    default: 7
+    type: int
+    description: Number of recent backups to retain.
+  nagios_context:
+    default: "juju"
+    type: string
+    description: |
+        Used by the nrpe-external-master subordinate charm.
+        A string that will be prepended to instance name to set the host name
+        in nagios. So for instance the hostname would be something like:
+            juju-postgresql-0
+        If you're running multiple environments with the same services in them
+        this allows you to differentiate between them.
+  extra_archives:
+    default: ""
+    type: string
+    description: |
+        Extra archives to add, space separated. Supports ppa:, http:, cloud:
+        URIs, as well as other schemes and keywords supported by
+        charmhelpers.fetch.add_source() such as "proposed".
+  advisory_lock_restart_key:
+    default: 765
+    type: int
+    description: |
+        An advisory lock key used internally by the charm. You do not need
+        to change it unless it happens to conflict with an advisory lock key
+        being used by your applications.
+
+  # Swift backups and PITR via SwiftWAL
+  swiftwal_container_prefix:
+    type: string
+    default: ""
+    description: |
+      EXPERIMENTAL.
+      Swift container prefix for SwiftWAL to use. Must be set if any
+      SwiftWAL features are enabled.
+  swiftwal_backup_schedule:
+    type: string
+    default: ""
+    description: |
+      EXPERIMENTAL.
+      Cron-formatted schedule for SwiftWAL database backups.
+  swiftwal_backup_retention:
+    type: int
+    default: 2
+    description: |
+      EXPERIMENTAL.
+      Number of recent base backups to retain. You need enough space in
+      Swift for this many backups plus one more, as an old backup will only
+      be removed after a new one has been successfully made to replace it.
+  swiftwal_log_shipping:
+    type: boolean
+    default: false
+    description: |
+      EXPERIMENTAL.
+      Archive WAL files into Swift. If swiftwal_backup_schedule is set,
+      this allows point-in-time recovery and WAL files are removed
+      automatically with old backups. If swiftwal_backup_schedule is not set
+      then WAL files are never removed. Enabling this option will override
+      the archive_mode and archive_command settings.
+  streaming_replication:
+    type: boolean
+    default: true
+    description: |
+      EXPERIMENTAL.
+      Enable streaming replication. Normally, streaming replication is
+      always used, and any log shipping configured is used as a fallback.
+      Turning this off without configuring log shipping is an error.
+  os_username:
+    type: string
+    default: ""
+    description: EXPERIMENTAL. OpenStack Swift username.
+  os_password:
+    type: string
+    default: ""
+    description: EXPERIMENTAL. OpenStack Swift password.
+  os_auth_url:
+    type: string
+    default: ""
+    description: EXPERIMENTAL. OpenStack Swift authentication URL.
+  os_tenant_name:
+    type: string
+    default: ""
+    description: EXPERIMENTAL. OpenStack Swift tenant name.
