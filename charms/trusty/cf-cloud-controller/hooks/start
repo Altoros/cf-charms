@@ -8,6 +8,7 @@ export CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
 export CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
 export CC_DIR=/var/lib/cloudfoundry/cfcloudcontroller
 export NATS_CONFIG=$CONFIG_DIR/nats.yml
+export NGINX_CONF=$CONFIG_DIR/nginx.conf
 
 cd $CC_DIR
 
@@ -19,4 +20,7 @@ bundle exec rake db:migrate
 
 juju-log "Starting CF cloud controller..."
 bundle exec bin/cloud_controller -m -c $CLOUD_CONTROLLER_NG_CONFIG &
+
+juju-log "Starting nginx..."
+/usr/sbin/nginx -c $NGINX_CONF -p /var/vcap
 exit 0
