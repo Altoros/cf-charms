@@ -11,7 +11,7 @@ set -xe
 apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4C430C3C2828E07D
 add-apt-repository ppa:cf-charm/ppa
 apt-get update
-apt-get install -y curl git libgd3 libjbig0 libjpeg-turbo8 libjpeg8 libtiff5 libvpx1 nginx nginx-common nginx-full nginx-extras libgd-tools nginx-doc fcgiwrap sqlite3 libsqlite3-dev
+apt-get install -y curl git libgd3 libjbig0 libjpeg-turbo8 libjpeg8 libtiff5 libvpx1 nginx nginx-common libgd-tools nginx-doc fcgiwrap sqlite3 libsqlite3-dev
 apt-get install -y cfcloudcontroller cfcloudcontrollerjob
 
 #Creating necessary directory structure that all components can operate and write down their logs
@@ -39,3 +39,6 @@ touch /var/vcap/sys/log/nginx_ccng/nginx.error.log
 
 #Creating an empty database file for using with sqlite3
 touch /var/lib/cloudfoundry/cfcloudcontroller/db/cc.db
+
+#Creating an empty config file for NATS
+touch /var/lib/cloudfoundry/cfcloudcontroller/jobs/config/nats.yml
