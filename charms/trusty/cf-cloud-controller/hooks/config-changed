@@ -1,2 +1,38 @@
 #!/bin/bash
 # config-changed occurs everytime a new configuration value is updated (juju set)
+
+set -xe
+
+export CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
+export CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
+export CC_DIR=/var/lib/cloudfoundry/cfcloudcontroller
+
+NATS_RUN_DIR=/var/vcap/sys/run/nats
+NATS_LOG_DIR=/var/vcap/sys/log/nats
+
+mkdir -p $NATS_RUN_DIR
+mkdir -p $NATS_LOG_DIR
+
+
+NATS_CONFIG="$CONFIG_DIR/nats.yml"
+
+cat <<EOF > $NATS_CONFIG
+---
+net: `relation-get private-address`
+port: 4222
+
+pid_file: $NATS_RUN_DIR/nats.pid
+log_file: $NATS_LOG_DIR/nats.log
+
+authorization:
+  user: admin
+  password: "password"
+  timeout: 5
+EOF
+
+cd $CC_DIR
+
+juju-log "Starting NATS server..."
+
+exec bundle exec nats-server -c /var/lib/cloudfoundry/cfcloudcontroller/jobs/config/nats.yml -d
+
