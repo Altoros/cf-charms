@@ -11,9 +11,11 @@ export CC_DIR=/var/lib/cloudfoundry/cfcloudcontroller
 cd $CC_DIR
 
 juju-log "Starting NATS server..."
-exec bundle exec nats-server -c $NATS_CONFIG -d
-exit
+bundle exec nats-server -c $NATS_CONFIG -d
+
+juju-log "Starting db:migrate..."
+bundle exec rake db:migrate
 
 juju-log "Starting CF cloud controller..."
-exec bundle exec bin/cloud_controller -m -c $CLOUD_CONTROLLER_NG_CONFIG
-exit
+bundle exec bin/cloud_controller -m -c $CLOUD_CONTROLLER_NG_CONFIG
+exit 0

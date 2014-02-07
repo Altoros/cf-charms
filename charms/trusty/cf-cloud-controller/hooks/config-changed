@@ -10,7 +10,7 @@ export CC_DIR=/var/lib/cloudfoundry/cfcloudcontroller
 NATS_RUN_DIR=/var/vcap/sys/run/nats
 NATS_LOG_DIR=/var/vcap/sys/log/nats
 
-NATS_CONFIG="$CONFIG_DIR/nats.yml"
+export NATS_CONFIG="$CONFIG_DIR/nats.yml"
 
 cat <<EOF > $NATS_CONFIG
 ---
@@ -26,7 +26,7 @@ authorization:
   timeout: 5
 EOF
 
-DB_PATH=/var/lib/cloudfoundry/cfcloudcontroller/db/cc.db
+export DB_PATH=/var/lib/cloudfoundry/cfcloudcontroller/db/cc.db
 
 sed -i "s|192.168.1.72|`unit-get private-address`|" $CLOUD_CONTROLLER_NG_CONFIG
 sed -i "s|nats:nats@127.0.0.1|admin:password@`unit-get private-address`|" $CLOUD_CONTROLLER_NG_CONFIG
