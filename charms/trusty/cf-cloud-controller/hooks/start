@@ -18,5 +18,5 @@ juju-log "Starting db:migrate..."
 bundle exec rake db:migrate
 
 juju-log "Starting CF cloud controller..."
-bundle exec bin/cloud_controller -m -c $CLOUD_CONTROLLER_NG_CONFIG
+bundle exec bin/cloud_controller -m -c $CLOUD_CONTROLLER_NG_CONFIG >> /dev/null
 exit 0
