@@ -43,5 +43,3 @@ sed -i "s|/var/vcap/jobs/cloud_controller_ng/config/stacks.yml|/var/lib/cloudfou
 cd $CC_DIR
 
 exec bundle exec bin/cloud_controller -m -c $CLOUD_CONTROLLER_NG_CONFIG
-
-config-get
