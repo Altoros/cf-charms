@@ -29,7 +29,7 @@ EOF
 DB_PATH=/var/lib/cloudfoundry/cfcloudcontroller/db/cc.db
 
 sed -i "s|192.168.1.72|`unit-get private-address`|" $CLOUD_CONTROLLER_NG_CONFIG
-sed -i "s|nats:nats@127.0.0.1|admin:password@`unit-get private-address`:4222|" $CLOUD_CONTROLLER_NG_CONFIG
+sed -i "s|nats:nats@127.0.0.1|admin:password@`unit-get private-address`|" $CLOUD_CONTROLLER_NG_CONFIG
 sed -i "s|postgres://ccadmin:password@127.0.0.1:5432/ccdb|sqlite://$DB_PATH|" $CLOUD_CONTROLLER_NG_CONFIG
 sed -i "s|/var/vcap/jobs/cloud_controller_ng/config/runtimes.yml|/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/runtimes.yml|" $CLOUD_CONTROLLER_NG_CONFIG
 sed -i "s|/var/vcap/jobs/cloud_controller_ng/config/stacks.yml|/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/stacks.yml|" $CLOUD_CONTROLLER_NG_CONFIG
