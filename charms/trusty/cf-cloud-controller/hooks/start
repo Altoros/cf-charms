@@ -2,3 +2,16 @@
 # Here put anything that is needed to start the service.
 # Note that currently this is run directly after install
 # i.e. 'service apache2 start'
+set -xe
+
+export CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
+export CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
+export CC_DIR=/var/lib/cloudfoundry/cfcloudcontroller
+
+cd $CC_DIR
+
+juju-log "Starting NATS server..."
+exec bundle exec nats-server -c $NATS_CONFIG -d
+
+juju-log "Starting CF cloud controller..."
+exec bundle exec bin/cloud_controller -m -c $CLOUD_CONTROLLER_NG_CONFIG
