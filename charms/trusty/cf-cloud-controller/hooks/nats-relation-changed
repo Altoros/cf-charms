@@ -5,14 +5,33 @@ set -xe
 
 export CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
 export CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
-RUN_DIR=/var/vcap/sys/run/cloud_controller_ng
-LOG_DIR=/var/vcap/sys/log/nats
-TMPDIR=/var/vcap/data/cloud_controller_ng/tmp
-PIDFILE=$RUN_DIR/cloud_controller_ng.pid
-NFS_SHARE=/var/vcap/nfs
+export CC_DIR=/var/lib/cloudfoundry/cfcloudcontroller
 
-mkdir -p $RUN_DIR
-mkdir -p $LOG_DIR
-mkdir -p $TMPDIR
+NATS_RUN_DIR=/var/vcap/sys/run/nats
+NATS_LOG_DIR=/var/vcap/sys/log/nats
 
-mkdir -p /var/vcap/nfs/shared
+mkdir -p $NATS_RUN_DIR
+mkdir -p $NATS_LOG_DIR
+
+
+NATS_CONFIG="$CONFIG_DIR/nats.yml"
+
+cat <<EOF > $NATS_CONFIG
+---
+net: `relation-get private-address`
+port: 4222
+
+pid_file: $NATS_RUN_DIR/nats.pid
+log_file: $NATS_LOG_DIR/nats.log
+
+authorization:
+  user: admin
+  password: "password"
+  timeout: 5
+EOF
+
+cd $CC_DIR
+
+juju-log "Starting NATS server..."
+
+exec bundle exec nats-server -c /var/lib/cloudfoundry/cfcloudcontroller/jobs/config/nats.yml -d
