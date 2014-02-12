@@ -36,4 +36,4 @@ sed -i "s|/var/vcap/jobs/cloud_controller_ng/config/runtimes.yml|/var/lib/cloudf
 sed -i "s|/var/vcap/jobs/cloud_controller_ng/config/stacks.yml|/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/stacks.yml|" $CLOUD_CONTROLLER_NG_CONFIG
 
 sed -i "s|user|#user|" $NGINX_CONF
-sed -i "/server_tokens/ a\	variables_hash_max_size 1024;" $NGINX_CONF
+sed -i "/server_tokens/ a\  variables_hash_max_size 1024;" $NGINX_CONF
