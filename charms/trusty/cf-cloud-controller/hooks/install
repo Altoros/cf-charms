@@ -10,8 +10,9 @@ set -xe
 # Installing packages
 apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4C430C3C2828E07D
 add-apt-repository ppa:cf-charm/ppa
+add-apt-repository ppa:charmers/charm-helpers
 apt-get update
-apt-get install -y curl git libgd3 libjbig0 libjpeg-turbo8 libjpeg8 libtiff5 libvpx1 nginx nginx-extras libgd-tools nginx-doc fcgiwrap sqlite3 libsqlite3-dev
+apt-get install -y curl git libgd3 libjbig0 libjpeg-turbo8 libjpeg8 libtiff5 libvpx1 charm-helper-sh nginx-extras libgd-tools nginx-doc fcgiwrap sqlite3 libsqlite3-dev
 apt-get install -y cfcloudcontroller cfcloudcontrollerjob
 
 #Creating necessary directory structure that all components can operate and write down their logs
@@ -42,3 +43,10 @@ touch /var/lib/cloudfoundry/cfcloudcontroller/db/cc.db
 
 #Creating an empty config file for NATS
 touch /var/lib/cloudfoundry/cfcloudcontroller/jobs/config/nats.yml
+
+#Creating user and group accounts under which the service will start
+if ! grep vcap /etc/passwd; then
+groupadd -f vcap
+useradd -g vcap vcap
+fi
+
