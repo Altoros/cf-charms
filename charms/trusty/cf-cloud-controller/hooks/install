@@ -54,3 +54,4 @@ groupadd -f vcap
 useradd -g vcap vcap
 fi
 
+echo 'Testing git ...'
