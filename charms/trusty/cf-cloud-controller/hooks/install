@@ -44,6 +44,9 @@ touch /var/lib/cloudfoundry/cfcloudcontroller/db/cc.db
 #Creating an empty config file for NATS
 touch /var/lib/cloudfoundry/cfcloudcontroller/jobs/config/nats.yml
 
+git config --global user.email "cf@example.com"
+git config --global user.name "CloudFoundry"
+
 #Creating user and group accounts under which the service will start
 if ! grep vcap /etc/passwd; then
 groupadd -f vcap
