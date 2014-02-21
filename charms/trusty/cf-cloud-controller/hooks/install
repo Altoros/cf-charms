@@ -44,6 +44,7 @@ touch /var/lib/cloudfoundry/cfcloudcontroller/db/cc.db
 #Creating an empty config file for NATS
 touch /var/lib/cloudfoundry/cfcloudcontroller/jobs/config/nats.yml
 
+export HOME=/home/ubuntu
 git config --global user.email "cf@example.com"
 git config --global user.name "CloudFoundry"
 
