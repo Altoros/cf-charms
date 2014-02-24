@@ -54,4 +54,27 @@ groupadd -f vcap
 useradd -g vcap vcap
 fi
 
+function detect_and_chmod {
+  while read data
+  do
+    file_type=$(file --brief --mime-type "$data")
+    if [[ $file_type == "inode/directory" ]];then
+     chmod 0755 "$data"
+    elif [[ $file_type == application/x-*lib ]];then
+     chmod 0644 "$data"
+    elif [[ $file_type == text/plain ]];then
+     chmod 0644 "$data"
+    else 
+     chmod g-w "$data"
+     chmod o-w "$data"
+    fi
+  done
+}
+
+function deb_permissions {
+  find $1 | detect_and_chmod
+}
+
+deb_permissions /var/lib/cloudfoundry
+
 echo 'Testing git ...'
