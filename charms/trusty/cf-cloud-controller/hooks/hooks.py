@@ -4,16 +4,16 @@
 import os
 import sys
 import time
-from subprocess import call
-from contextlib import contextmanager
-from charmhelpers.core.host import *
+import subprocess.Popen
 from charmhelpers.core import hookenv, host
 
-from charmhelpers.core.hookenv import (
-    CRITICAL, ERROR, WARNING, INFO, DEBUG,
+from charmhelpers.core.hookenv import \
+    (
+        CRITICAL, ERROR, WARNING, INFO, DEBUG,
     )
 
 hooks = hookenv.Hooks()
+
 
 def log(msg, lvl=INFO):
     '''Log a message.
@@ -29,6 +29,7 @@ def log(msg, lvl=INFO):
     with open('{}/{}-debug.log'.format(juju_log_dir, myname), 'a') as f:
         f.write('{} {}: {}\n'.format(ts, lvl, msg))
     hookenv.log(msg, lvl)
+
 
 def run(command, exit_on_error=True, quiet=False):
     '''Run a command and return the output.'''
@@ -65,6 +66,7 @@ def run(command, exit_on_error=True, quiet=False):
 
 hooks = hookenv.Hooks()
 
+
 @hooks.hook()
 def install():
     #TODO install needed packages in cc package
@@ -74,9 +76,10 @@ def install():
     run(['add-apt-repository', 'ppa:cf-charm/ppa'])
     run(['apt-get', 'update'])
     #run(['apt-get', 'install', 'curl', 'git', 'libgd3', 'libjbig0', 'libjpeg-turbo8', 'libjpeg8', 'libtiff5',\
-    #                    'libvpx1', 'charm-helper-sh', 'nginx-extras', 'libgd-tools', 'nginx-doc', 'fcgiwrap', 'sqlite3', 'libsqlite3-dev'])
+            #'libvpx1', 'charm-helper-sh', 'nginx-extras', 'libgd-tools', 'nginx-doc', 'fcgiwrap', 'sqlite3', 'libsqlite3-dev'])
     run(['apt-get', 'install', '-y', 'cfcloudcontroller', 'cfcloudcontrollerjob'])
-    adduser('vcap')
+    host.adduser('vcap')
+
 
 @hooks.hook()
 def start():
@@ -99,6 +102,7 @@ def start():
     juju-log "Starting nginx..."
     /usr/sbin/nginx -c $NGINX_CONF -p /var/vcap
     '''
+
 
 @hooks.hook("config-changed")
 def config_changed():
@@ -138,6 +142,7 @@ def config_changed():
     sed -i "s|user|#user|" $NGINX_CONF
     sed -i "/server_tokens/ a\  variables_hash_max_size 1024;" $NGINX_CONF
     '''
+
 
 @hooks.hook()
 def stop():
@@ -193,7 +198,7 @@ def stop():
       fi
     }
     '''
-    pass
+
 
 @hooks.hook('db-relation-changed')
 def db_relation_changed():
@@ -231,6 +236,7 @@ def db_relation_changed():
     juju-log Relation members:
     relation-list
     '''
+
 
 @hooks.hook('nats-relation-changed')
 def nats_relation_changed():
@@ -281,4 +287,3 @@ if __name__ == '__main__':
         log("Relation {} with {}".format(
             hookenv.relation_id(), hookenv.remote_unit()))
     hooks.execute(sys.argv)
-
