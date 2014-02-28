@@ -80,24 +80,22 @@ def install():
 
 @hooks.hook()
 def start():
+    config_dir = '/var/lib/cloudfoundry/cfcloudcontroller/jobs/config'
+    os.environ['CONFIG_DIR'] = config_dir
+    os.environ['CLOUD_CONTROLLER_NG_CONFIG'] = '{}/cloud_controller_ng.yml'.format(config_dir)
+    cc_dir = '/var/lib/cloudfoundry/cfcloudcontroller'
+    os.environ['CC_DIR'] = cc_dir
+    nats_config = '{}/nats.yml'.format(config_dir)
+    os.environ['NATS_CONFIG'] = nats_config
+    os.environ['NGINX_CONF'] = '{}/nginx.conf'.format(config_dir)
+    log("Starting NATS server...")
+    os.chdir(cc_dir)
+    run(['bundle', 'exec', 'nats-server', '-c', nats_config, '-d'])
+    log("Starting db:migrate...")
+    run(['bundle', 'exec', 'rake', 'db:migrate'])
+    log("Starting CF cloud controller...")
     '''
-    export CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
-    export CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
-    export CC_DIR=/var/lib/cloudfoundry/cfcloudcontroller
-    export NATS_CONFIG=$CONFIG_DIR/nats.yml
-    export NGINX_CONF=$CONFIG_DIR/nginx.conf
-
-    cd $CC_DIR
-
-    juju-log "Starting NATS server..."
-    bundle exec nats-server -c $NATS_CONFIG -d
-
-    juju-log "Starting db:migrate..."
-    bundle exec rake db:migrate
-
-    juju-log "Starting CF cloud controller..."
     bundle exec bin/cloud_controller -m -c $CLOUD_CONTROLLER_NG_CONFIG &
-
     juju-log "Starting nginx..."
     /usr/sbin/nginx -c $NGINX_CONF -p /var/vcap
     '''
@@ -105,15 +103,15 @@ def start():
 @hooks.hook("config-changed")
 def config_changed():
    '''
-    export CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
-    export CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
-    export CC_DIR=/var/lib/cloudfoundry/cfcloudcontroller
+    os.environ['CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
+    os.environ['CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
+    os.environ['CC_DIR=/var/lib/cloudfoundry/cfcloudcontroller
 
     NATS_RUN_DIR=/var/vcap/sys/run/nats
     NATS_LOG_DIR=/var/vcap/sys/log/nats
 
-    export NATS_CONFIG=$CONFIG_DIR/nats.yml
-    export NGINX_CONF=$CONFIG_DIR/nginx.conf
+    os.environ['NATS_CONFIG=$CONFIG_DIR/nats.yml
+    os.environ['NGINX_CONF=$CONFIG_DIR/nginx.conf
 
     cat <<EOF > $NATS_CONFIG
     ---
@@ -129,7 +127,7 @@ def config_changed():
       timeout: 5
     EOF
 
-    export DB_PATH=/var/lib/cloudfoundry/cfcloudcontroller/db/cc.db
+    os.environ['DB_PATH=/var/lib/cloudfoundry/cfcloudcontroller/db/cc.db
 
     sed -i "s|192.168.1.72|`unit-get private-address`|" $CLOUD_CONTROLLER_NG_CONFIG
     sed -i "s|nats:nats@127.0.0.1|admin:password@`unit-get private-address`|" $CLOUD_CONTROLLER_NG_CONFIG
@@ -211,8 +209,8 @@ def db_relation_changed():
 
     juju-log $DB_SCHEMA_USER, $DB_SCHEMA_PASSWORD, $DB_USER, $DB_USER_PASSWORD, $DB_DB, $DB_HOST, $DB_HOST_PORT, $DB_HOST_STATE
 
-    export CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
-    export CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
+    os.environ['CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
+    os.environ['CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
     RUN_DIR=/var/vcap/sys/run/cloud_controller_ng
     LOG_DIR=/var/vcap/sys/log/cloud_controller_ng
     TMPDIR=/var/vcap/data/cloud_controller_ng/tmp
@@ -237,9 +235,9 @@ def db_relation_changed():
 @hooks.hook('nats-relation-changed')
 def nats_relation_changed():
     '''
-    export CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
-    export CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
-    export CC_DIR=/var/lib/cloudfoundry/cfcloudcontroller
+    os.environ['CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
+    os.environ['CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
+    os.environ['CC_DIR=/var/lib/cloudfoundry/cfcloudcontroller
 
     NATS_RUN_DIR=/var/vcap/sys/run/nats
     NATS_LOG_DIR=/var/vcap/sys/log/nats
