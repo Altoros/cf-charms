@@ -4,7 +4,12 @@
 import os
 import sys
 import time
-import subprocess.Popen
+import subprocess
+
+from charmhelpers.cloudfoundry import \
+    (
+        cf_user, nats_run_dir, nats_log_dir, nats_config_file, cc_dir, nats_job_file
+    )
 from charmhelpers.core import hookenv, host
 
 from charmhelpers.core.hookenv import \
@@ -64,39 +69,58 @@ def run(command, exit_on_error=True, quiet=False):
     raise subprocess.CalledProcessError(
         p.returncode, command, '\n'.join(lines))
 
+
 hooks = hookenv.Hooks()
 
 
 @hooks.hook()
 def install():
     #TODO install needed packages in cc package
-    log('Begin package installation')
-    print 'Hi'
     run(['apt-key', 'adv', '--keyserver', 'keyserver.ubuntu.com', '--recv-keys', '4C430C3C2828E07D'])
     run(['add-apt-repository', 'ppa:cf-charm/ppa'])
     run(['apt-get', 'update'])
     #run(['apt-get', 'install', 'curl', 'git', 'libgd3', 'libjbig0', 'libjpeg-turbo8', 'libjpeg8', 'libtiff5',\
             #'libvpx1', 'charm-helper-sh', 'nginx-extras', 'libgd-tools', 'nginx-doc', 'fcgiwrap', 'sqlite3', 'libsqlite3-dev'])
-    run(['apt-get', 'install', '-y', 'cfcloudcontroller', 'cfcloudcontrollerjob'])
-    host.adduser('vcap')
+    run(['apt-get', 'install', '-y', 'cfcloudcontroller'])
+    run(['apt-get', 'install', '-y', 'cfcloudcontrollerjob'])
+    host.adduser(cf_user)
+    content = '''net: {}
+port: 4222
+
+pid_file: {}/nats.pid
+log_file: {}/nats.log
+
+authorization:
+  user: admin
+  password: "password"
+  timeout: 5
+    '''.format(hookenv.unit_private_ip(), nats_run_dir, nats_log_dir)
+    host.write_file(nats_config_file, content, owner=cf_user, group=cf_user)
+    content = '''description "Cloud Foundry NATS"
+author "Alexander Prismakov<prismakov@gmail.com>"
+start on runlevel [2345]
+stop on runlevel [!2345]
+expect daemon
+#apparmor load <profile-path>
+setuid {user}
+setgid {user}
+respawn
+normal exit 0
+chdir {ccd}
+exec bundle exec nats-server -c {natsyaml} -d
+    '''.format(user=cf_user, ccd=cc_dir, natsyaml=nats_config_file)
+    host.write_file(nats_job_file, content)
+    host.mkdir(nats_run_dir, owner=cf_user, group=cf_user, perms=1777)
+    host.mkdir(nats_log_dir, owner=cf_user, group=cf_user, perms=1777)
 
 
 @hooks.hook()
 def start():
-    config_dir = '/var/lib/cloudfoundry/cfcloudcontroller/jobs/config'
-    os.environ['CONFIG_DIR'] = config_dir
-    os.environ['CLOUD_CONTROLLER_NG_CONFIG'] = '{}/cloud_controller_ng.yml'.format(config_dir)
-    cc_dir = '/var/lib/cloudfoundry/cfcloudcontroller'
-    os.environ['CC_DIR'] = cc_dir
-    nats_config = '{}/nats.yml'.format(config_dir)
-    os.environ['NATS_CONFIG'] = nats_config
-    os.environ['NGINX_CONF'] = '{}/nginx.conf'.format(config_dir)
-    log("Starting NATS server...")
-    os.chdir(cc_dir)
-    run(['bundle', 'exec', 'nats-server', '-c', nats_config, '-d'])
-    log("Starting db:migrate...")
-    run(['bundle', 'exec', 'rake', 'db:migrate'])
-    log("Starting CF cloud controller...")
+    log("Run NATS daemonized in the background")
+    host.service_start('cf-nats')
+    #log("Starting db:migrate...")
+    #run(['bundle', 'exec', 'rake', 'db:migrate'])
+    #log("Starting CF cloud controller...")
     '''
     bundle exec bin/cloud_controller -m -c $CLOUD_CONTROLLER_NG_CONFIG &
     juju-log "Starting nginx..."
@@ -106,31 +130,7 @@ def start():
 
 @hooks.hook("config-changed")
 def config_changed():
-   '''
-    os.environ['CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
-    os.environ['CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
-    os.environ['CC_DIR=/var/lib/cloudfoundry/cfcloudcontroller
-
-    NATS_RUN_DIR=/var/vcap/sys/run/nats
-    NATS_LOG_DIR=/var/vcap/sys/log/nats
-
-    os.environ['NATS_CONFIG=$CONFIG_DIR/nats.yml
-    os.environ['NGINX_CONF=$CONFIG_DIR/nginx.conf
-
-    cat <<EOF > $NATS_CONFIG
-    ---
-    net: `unit-get private-address`
-    port: 4222
-
-    pid_file: $NATS_RUN_DIR/nats.pid
-    log_file: $NATS_LOG_DIR/nats.log
-
-    authorization:
-      user: admin
-      password: "password"
-      timeout: 5
-    EOF
-
+    '''
     os.environ['DB_PATH=/var/lib/cloudfoundry/cfcloudcontroller/db/cc.db
 
     sed -i "s|192.168.1.72|`unit-get private-address`|" $CLOUD_CONTROLLER_NG_CONFIG
@@ -146,58 +146,7 @@ def config_changed():
 
 @hooks.hook()
 def stop():
-    '''
-    wait_pidfile() {
-      pidfile=$1
-      try_kill=$2
-      timeout=${3:-0}
-      force=${4:-0}
-      countdown=$(( $timeout * 10 ))
-
-      if [ -f "$pidfile" ]; then
-        pid=$(head -1 "$pidfile")
-
-        if [ -z "$pid" ]; then
-          echo "Unable to get pid from $pidfile"
-          exit 1
-        fi
-
-        if [ -e /proc/$pid ]; then
-          if [ "$try_kill" = "1" ]; then
-            echo "Killing $pidfile: $pid "
-            kill $pid
-          fi
-          while [ -e /proc/$pid ]; do
-            sleep 0.1
-            [ "$countdown" != '0' -a $(( $countdown % 10 )) = '0' ] && echo -n .
-            if [ $timeout -gt 0 ]; then
-              if [ $countdown -eq 0 ]; then
-                if [ "$force" = "1" ]; then
-                  echo -ne "\nKill timed out, using kill -9 on $pid... "
-                  kill -9 $pid
-                  sleep 0.5
-                fi
-                break
-              else
-                countdown=$(( $countdown - 1 ))
-              fi
-            fi
-          done
-          if [ -e /proc/$pid ]; then
-            echo "Timed Out"
-          else
-            echo "Stopped"
-          fi
-        else
-          echo "Process $pid is not running"
-        fi
-
-        rm -f $pidfile
-      else
-        echo "Pidfile $pidfile doesn't exist"
-      fi
-    }
-    '''
+    host.service_stop('cf-nats')
 
 
 @hooks.hook('db-relation-changed')

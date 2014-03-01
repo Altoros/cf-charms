@@ -1,0 +1,10 @@
+cf_user = 'vcap'
+cf_dir = '/var/lib/cloudfoundry'
+cc_dir = '{}/cfcloudcontroller'.format(cf_dir)
+cc_config_dir = '{}/jobs/config'.format(cc_dir)
+cc_config_file = '{}/cloud_controller_ng.yml'.format(cc_config_dir)
+nats_config_file = '{}/nats.yml'.format(cc_config_dir)
+nginx_config_file = '{}/nginx.conf'.format(cc_config_dir)
+nats_run_dir = '/var/vcap/sys/run/nats'
+nats_log_dir = '/var/vcap/sys/log/nats'
+nats_job_file = '/etc/init/cf-nats.conf'
