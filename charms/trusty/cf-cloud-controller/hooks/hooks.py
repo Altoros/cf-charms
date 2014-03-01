@@ -8,8 +8,10 @@ import subprocess
 
 from charmhelpers.cloudfoundry import \
     (
-        cf_user, nats_run_dir, nats_log_dir, nats_config_file, cc_dir, nats_job_file
+        cf_dir, cf_user, nats_run_dir, nats_log_dir, nats_config_file, cc_dir,
+        nats_job_file, cc_db_file,
     )
+from charmhelpers.cloudfoundry import fs
 from charmhelpers.core import hookenv, host
 
 from charmhelpers.core.hookenv import \
@@ -75,7 +77,6 @@ hooks = hookenv.Hooks()
 
 @hooks.hook()
 def install():
-    #TODO install needed packages in cc package
     run(['apt-key', 'adv', '--keyserver', 'keyserver.ubuntu.com', '--recv-keys', '4C430C3C2828E07D'])
     run(['add-apt-repository', 'ppa:cf-charm/ppa'])
     run(['apt-get', 'update'])
@@ -110,15 +111,18 @@ chdir {ccd}
 exec bundle exec nats-server -c {natsyaml} -d
     '''.format(user=cf_user, ccd=cc_dir, natsyaml=nats_config_file)
     host.write_file(nats_job_file, content)
+    fs.chownr(cf_dir, owner=cf_user, group=cf_user)
+    host.write_file(cc_db_file, content, owner=cf_user, group=cf_user, perms=0664)
     host.mkdir(nats_run_dir, owner=cf_user, group=cf_user, perms=1777)
     host.mkdir(nats_log_dir, owner=cf_user, group=cf_user, perms=1777)
 
 
 @hooks.hook()
 def start():
-    log("Run NATS daemonized in the background")
+    log("Starting NATS daemonized in the background")
     host.service_start('cf-nats')
-    #log("Starting db:migrate...")
+    log("Starting db:migrate...")
+    os.chdir(cc_dir)
     #run(['bundle', 'exec', 'rake', 'db:migrate'])
     #log("Starting CF cloud controller...")
     '''
@@ -151,6 +155,7 @@ def stop():
 
 @hooks.hook('db-relation-changed')
 def db_relation_changed():
+    #TODO
     '''
     CHEMA_USER=`relation-get schema_user`
     DB_SCHEMA_PASSWORD=`relation-get schema_password`
@@ -189,40 +194,7 @@ def db_relation_changed():
 
 @hooks.hook('nats-relation-changed')
 def nats_relation_changed():
-    '''
-    os.environ['CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
-    os.environ['CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
-    os.environ['CC_DIR=/var/lib/cloudfoundry/cfcloudcontroller
-
-    NATS_RUN_DIR=/var/vcap/sys/run/nats
-    NATS_LOG_DIR=/var/vcap/sys/log/nats
-
-    mkdir -p $NATS_RUN_DIR
-    mkdir -p $NATS_LOG_DIR
-
-
-    NATS_CONFIG="$CONFIG_DIR/nats.yml"
-
-    cat <<EOF > $NATS_CONFIG
-    ---
-    net: `relation-get private-address`
-    port: 4222
-
-    pid_file: $NATS_RUN_DIR/nats.pid
-    log_file: $NATS_LOG_DIR/nats.log
-
-    authorization:
-      user: admin
-      password: "password"
-      timeout: 5
-    EOF
-
-    cd $CC_DIR
-
-    juju-log "Starting NATS server..."
-
-    exec bundle exec nats-server -c /var/lib/cloudfoundry/cfcloudcontroller/jobs/config/nats.yml -d
-    '''
+    pass
 
 
 hook_name = os.path.basename(sys.argv[0])

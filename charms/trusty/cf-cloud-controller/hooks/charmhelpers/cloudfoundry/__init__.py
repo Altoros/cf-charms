@@ -8,3 +8,4 @@ nginx_config_file = '{}/nginx.conf'.format(cc_config_dir)
 nats_run_dir = '/var/vcap/sys/run/nats'
 nats_log_dir = '/var/vcap/sys/log/nats'
 nats_job_file = '/etc/init/cf-nats.conf'
+cc_db_file = '{}/db/cc.db'.format(cc_dir)
