@@ -6,11 +6,6 @@ import sys
 import time
 import subprocess
 
-from charmhelpers.cloudfoundry import \
-    (
-        cf_dir, cf_user, nats_run_dir, nats_log_dir, nats_config_file, cc_dir,
-        nats_job_file, cc_db_file,
-    )
 from charmhelpers.cloudfoundry import fs
 from charmhelpers.core import hookenv, host
 
@@ -19,6 +14,21 @@ from charmhelpers.core.hookenv import \
         CRITICAL, ERROR, WARNING, INFO, DEBUG,
     )
 
+cf_user = 'vcap'
+cf_dir = '/var/lib/cloudfoundry'
+cc_dir = '{}/cfcloudcontroller'.format(cf_dir)
+cc_config_dir = '{}/jobs/config'.format(cc_dir)
+cc_config_file = '{}/cloud_controller_ng.yml'.format(cc_config_dir)
+nats_config_file = '{}/nats.yml'.format(cc_config_dir)
+nginx_config_file = '{}/nginx.conf'.format(cc_config_dir)
+nats_run_dir = '/var/vcap/sys/run/nats'
+nats_log_dir = '/var/vcap/sys/log/nats'
+nats_job_file = '/etc/init/cf-nats.conf'
+cc_db_file = '{}/db/cc.db'.format(cc_dir)
+cc_log_dir = '/var/vcap/sys/log/cloud_controller_ng'
+cc_run_dir = '/var/vcap/sys/run/cloud_controller_ng'
+nginx_run_dir = '/var/vcap/sys/run/nginx_ccng'
+nginx_log_dir = '/var/vcap/sys/log/nginx_ccng'
 hooks = hookenv.Hooks()
 
 
@@ -97,6 +107,7 @@ authorization:
   timeout: 5
     '''.format(hookenv.unit_private_ip(), nats_run_dir, nats_log_dir)
     host.write_file(nats_config_file, content, owner=cf_user, group=cf_user)
+    #todo use Session init instead of system
     content = '''description "Cloud Foundry NATS"
 author "Alexander Prismakov<prismakov@gmail.com>"
 start on runlevel [2345]
@@ -113,8 +124,12 @@ exec bundle exec nats-server -c {natsyaml} -d
     host.write_file(nats_job_file, content)
     fs.chownr(cf_dir, owner=cf_user, group=cf_user)
     host.write_file(cc_db_file, content, owner=cf_user, group=cf_user, perms=0664)
-    host.mkdir(nats_run_dir, owner=cf_user, group=cf_user, perms=1777)
-    host.mkdir(nats_log_dir, owner=cf_user, group=cf_user, perms=1777)
+    dirs = [nats_run_dir, nats_log_dir, cc_run_dir, nginx_run_dir, cc_log_dir, nginx_log_dir,
+            '/var/vcap/data/cloud_controller_ng/tmp', '/var/vcap/data/cloud_controller_ng/tmp/uploads',
+            '/var/vcap/data/cloud_controller_ng/tmp/staged_droplet_uploads',
+            '/var/vcap/nfs/store']
+    for item in dirs:
+        host.mkdir(item, owner=cf_user, group=cf_user, perms=1777)
 
 
 @hooks.hook()
@@ -123,7 +138,7 @@ def start():
     host.service_start('cf-nats')
     log("Starting db:migrate...")
     os.chdir(cc_dir)
-    #run(['bundle', 'exec', 'rake', 'db:migrate'])
+    run(['sudo', '-u', cf_user, '-g', cf_user, 'bundle', 'exec', 'rake', 'db:migrate'])
     #log("Starting CF cloud controller...")
     '''
     bundle exec bin/cloud_controller -m -c $CLOUD_CONTROLLER_NG_CONFIG &
@@ -134,18 +149,28 @@ def start():
 
 @hooks.hook("config-changed")
 def config_changed():
-    '''
-    os.environ['DB_PATH=/var/lib/cloudfoundry/cfcloudcontroller/db/cc.db
-
-    sed -i "s|192.168.1.72|`unit-get private-address`|" $CLOUD_CONTROLLER_NG_CONFIG
-    sed -i "s|nats:nats@127.0.0.1|admin:password@`unit-get private-address`|" $CLOUD_CONTROLLER_NG_CONFIG
-    sed -i "s|postgres://ccadmin:password@127.0.0.1:5432/ccdb|sqlite://$DB_PATH|" $CLOUD_CONTROLLER_NG_CONFIG
-    sed -i "s|/var/vcap/jobs/cloud_controller_ng/config/runtimes.yml|/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/runtimes.yml|" $CLOUD_CONTROLLER_NG_CONFIG
-    sed -i "s|/var/vcap/jobs/cloud_controller_ng/config/stacks.yml|/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/stacks.yml|" $CLOUD_CONTROLLER_NG_CONFIG
-
-    sed -i "s|user|#user|" $NGINX_CONF
-    sed -i "/server_tokens/ a\  variables_hash_max_size 1024;" $NGINX_CONF
-    '''
+    tmp_file_name = '{}.next'.format(cc_config_file)
+    with open(tmp_file_name, "wt") as fout:
+        with open(cc_config_file, "rt") as fin:
+            for line in fin:
+                new_line = line.replace('192.168.1.72', hookenv.unit_private_ip())
+                new_line = line.replace(r'nats:nats@127.0.0.1', 'admin:password@{}'.format(hookenv.unit_private_ip()))
+                new_line = line.replace(r'postgres://ccadmin:password@127.0.0.1:5432/ccdb', 'sqlite://{}'.format(cc_db_file))
+                new_line = line.replace(r'/var/vcap/jobs/cloud_controller_ng/config/runtimes.yml', '/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/runtimes.yml')
+                new_line = line.replace(r'/var/vcap/jobs/cloud_controller_ng/config/stacks.yml', '/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/stacks.yml')
+                new_line = line.replace(r'192.168.1.72', hookenv.unit_private_ip())
+                fout.write(new_line)
+    os.rename(tmp_file_name, cc_config_file)
+    tmp_file_name = '{}.next'.format(nginx_config_file)
+    with open(tmp_file_name, "wt") as fout:
+        with open(nginx_config_file, "rt") as fin:
+            for line in fin:
+                new_line = line.replace('user', r'#user')
+                new_line = line.replace('nats:nats@127.0.0.1', 'admin:password@{}'.format(hookenv.unit_private_ip()))
+                fout.write(new_line)
+    os.rename(tmp_file_name, nginx_config_file)
+    #TODO use pure python here
+    run(['sed', '-i', r'"/server_tokens/ a\  variables_hash_max_size 1024;"', nginx_config_file])
 
 
 @hooks.hook()
