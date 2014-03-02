@@ -23,12 +23,15 @@ nats_config_file = '{}/nats.yml'.format(cc_config_dir)
 nginx_config_file = '{}/nginx.conf'.format(cc_config_dir)
 nats_run_dir = '/var/vcap/sys/run/nats'
 nats_log_dir = '/var/vcap/sys/log/nats'
-nats_job_file = '/etc/init/cf-nats.conf'
 cc_db_file = '{}/db/cc.db'.format(cc_dir)
+cc_job_file = '/etc/init/cf-cloudcontroller.conf'
+nats_job_file = '/etc/init/cf-nats.conf'
+nginx_job_file = '/etc/init/cf-nginx.conf'
 cc_log_dir = '/var/vcap/sys/log/cloud_controller_ng'
 cc_run_dir = '/var/vcap/sys/run/cloud_controller_ng'
 nginx_run_dir = '/var/vcap/sys/run/nginx_ccng'
 nginx_log_dir = '/var/vcap/sys/log/nginx_ccng'
+fog_connection = '/var/vcap/nfs/store'
 hooks = hookenv.Hooks()
 
 
@@ -110,7 +113,7 @@ authorization:
     #todo use Session init instead of system
     content = '''description "Cloud Foundry NATS"
 author "Alexander Prismakov<prismakov@gmail.com>"
-start on runlevel [2345]
+start on starting cf-cloudcontroller or runlevel [2345]
 stop on runlevel [!2345]
 expect daemon
 #apparmor load <profile-path>
@@ -122,14 +125,40 @@ chdir {ccd}
 exec bundle exec nats-server -c {natsyaml} -d
     '''.format(user=cf_user, ccd=cc_dir, natsyaml=nats_config_file)
     host.write_file(nats_job_file, content)
-    fs.chownr(cf_dir, owner=cf_user, group=cf_user)
-    host.write_file(cc_db_file, content, owner=cf_user, group=cf_user, perms=0664)
+    content = '''description "Cloud Foundry cloud controller"
+author "Alexander Prismakov<prismakov@gmail.com>"
+start on runlevel [2345]
+stop on runlevel [!2345]
+#apparmor load <profile-path>
+setuid {user}
+setgid {user}
+respawn
+normal exit 0
+chdir {ccd}
+exec bundle exec bin/cloud_controller -m -c {ccyaml}
+    '''.format(user=cf_user, ccd=cc_dir, ccyaml=cc_config_file)
+    host.write_file(cc_job_file, content)
+#    content = '''description "Cloud Foundry NGINX"
+#author "Alexander Prismakov<prismakov@gmail.com>"
+#start on runlevel [2345]
+#stop on runlevel [!2345]
+##apparmor load <profile-path>
+#setuid {user}
+#setgid {user}
+#respawn
+#normal exit 0
+#exec /usr/sbin/nginx -c {nginxcf} -p /var/vcap
+#    '''.format(user=cf_user, ccd=cc_dir, nginxcf=nginx_config_file)
+#    host.write_file(nginx_job_file, content)
+    host.write_file(cc_db_file, '', owner=cf_user, group=cf_user, perms=0664)
     dirs = [nats_run_dir, nats_log_dir, cc_run_dir, nginx_run_dir, cc_log_dir, nginx_log_dir,
             '/var/vcap/data/cloud_controller_ng/tmp', '/var/vcap/data/cloud_controller_ng/tmp/uploads',
             '/var/vcap/data/cloud_controller_ng/tmp/staged_droplet_uploads',
             '/var/vcap/nfs/store']
     for item in dirs:
         host.mkdir(item, owner=cf_user, group=cf_user, perms=1777)
+    fs.chownr('/var/vcap', owner=cf_user, group=cf_user)
+    fs.chownr(cf_dir, owner=cf_user, group=cf_user)
 
 
 @hooks.hook()
@@ -138,27 +167,45 @@ def start():
     host.service_start('cf-nats')
     log("Starting db:migrate...")
     os.chdir(cc_dir)
-    run(['sudo', '-u', cf_user, '-g', cf_user, 'bundle', 'exec', 'rake', 'db:migrate'])
-    #log("Starting CF cloud controller...")
-    '''
-    bundle exec bin/cloud_controller -m -c $CLOUD_CONTROLLER_NG_CONFIG &
-    juju-log "Starting nginx..."
-    /usr/sbin/nginx -c $NGINX_CONF -p /var/vcap
-    '''
+    run(['sudo', '-u', cf_user, '-g', cf_user, 'CLOUD_CONTROLLER_NG_CONFIG={}'.format(cc_config_file), 'bundle', 'exec', 'rake', 'db:migrate'])
+    log("Starting cloud controller daemonized in the background")
+    host.service_start('cf-cloudcontroller')
+ #   log("Starting NGINX")
+ #   host.service_start('cf-nginx')
 
 
 @hooks.hook("config-changed")
 def config_changed():
     tmp_file_name = '{}.next'.format(cc_config_file)
+    #todo optimize code below
     with open(tmp_file_name, "wt") as fout:
         with open(cc_config_file, "rt") as fin:
             for line in fin:
                 new_line = line.replace('192.168.1.72', hookenv.unit_private_ip())
+                fout.write(new_line)
+    os.rename(tmp_file_name, cc_config_file)
+    with open(tmp_file_name, "wt") as fout:
+        with open(cc_config_file, "rt") as fin:
+            for line in fin:
                 new_line = line.replace(r'nats:nats@127.0.0.1', 'admin:password@{}'.format(hookenv.unit_private_ip()))
+                fout.write(new_line)
+    os.rename(tmp_file_name, cc_config_file)
+    with open(tmp_file_name, "wt") as fout:
+        with open(cc_config_file, "rt") as fin:
+            for line in fin:
                 new_line = line.replace(r'postgres://ccadmin:password@127.0.0.1:5432/ccdb', 'sqlite://{}'.format(cc_db_file))
+                fout.write(new_line)
+    os.rename(tmp_file_name, cc_config_file)
+    with open(tmp_file_name, "wt") as fout:
+        with open(cc_config_file, "rt") as fin:
+            for line in fin:
                 new_line = line.replace(r'/var/vcap/jobs/cloud_controller_ng/config/runtimes.yml', '/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/runtimes.yml')
+                fout.write(new_line)
+    os.rename(tmp_file_name, cc_config_file)
+    with open(tmp_file_name, "wt") as fout:
+        with open(cc_config_file, "rt") as fin:
+            for line in fin:
                 new_line = line.replace(r'/var/vcap/jobs/cloud_controller_ng/config/stacks.yml', '/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/stacks.yml')
-                new_line = line.replace(r'192.168.1.72', hookenv.unit_private_ip())
                 fout.write(new_line)
     os.rename(tmp_file_name, cc_config_file)
     tmp_file_name = '{}.next'.format(nginx_config_file)
@@ -170,17 +217,19 @@ def config_changed():
                 fout.write(new_line)
     os.rename(tmp_file_name, nginx_config_file)
     #TODO use pure python here
-    run(['sed', '-i', r'"/server_tokens/ a\  variables_hash_max_size 1024;"', nginx_config_file])
+    run(['sed', '-i', r'/server_tokens/ a\  variables_hash_max_size 1024;', nginx_config_file])
 
 
 @hooks.hook()
 def stop():
+    #    host.service_stop('cf-nginx')
+    host.service_stop('cf-cloudcontroller')
     host.service_stop('cf-nats')
 
 
 @hooks.hook('db-relation-changed')
 def db_relation_changed():
-    #TODO
+    #TODO use python
     '''
     CHEMA_USER=`relation-get schema_user`
     DB_SCHEMA_PASSWORD=`relation-get schema_password`
