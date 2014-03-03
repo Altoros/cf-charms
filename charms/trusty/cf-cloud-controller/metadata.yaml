@@ -1,6 +1,6 @@
 name: cf-cloud-controller
 summary: "Cloud Foundry Cloud Controller"
-maintainer: Ubuntu <Ubuntu@mr-dev>
+maintainer: Alexnder Prismakov <prismakov@gmail.com>
 description: |
   The Cloud Controller is written in Ruby and provides REST API endpoints
   for clients to access the system. The Cloud Controller maintains a database

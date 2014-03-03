@@ -14,6 +14,7 @@ from charmhelpers.core.hookenv import \
         CRITICAL, ERROR, WARNING, INFO, DEBUG,
     )
 
+cc_port = hookenv.config('cc-port')
 cf_user = 'vcap'
 cf_dir = '/var/lib/cloudfoundry'
 cc_dir = '{}/cfcloudcontroller'.format(cf_dir)
@@ -138,18 +139,18 @@ chdir {ccd}
 exec bundle exec bin/cloud_controller -m -c {ccyaml}
     '''.format(user=cf_user, ccd=cc_dir, ccyaml=cc_config_file)
     host.write_file(cc_job_file, content)
-#    content = '''description "Cloud Foundry NGINX"
-#author "Alexander Prismakov<prismakov@gmail.com>"
-#start on runlevel [2345]
-#stop on runlevel [!2345]
-##apparmor load <profile-path>
+    content = '''description "Cloud Foundry NGINX"
+author "Alexander Prismakov<prismakov@gmail.com>"
+start on starting cf-cloudcontroller or runlevel [2345]
+stop on runlevel [!2345]
+#apparmor load <profile-path>
 #setuid {user}
 #setgid {user}
-#respawn
-#normal exit 0
-#exec /usr/sbin/nginx -c {nginxcf} -p /var/vcap
-#    '''.format(user=cf_user, ccd=cc_dir, nginxcf=nginx_config_file)
-#    host.write_file(nginx_job_file, content)
+respawn
+normal exit 0
+exec /usr/sbin/nginx -c {nginxcf} -p /var/vcap
+    '''.format(user=cf_user, ccd=cc_dir, nginxcf=nginx_config_file)
+    host.write_file(nginx_job_file, content)
     host.write_file(cc_db_file, '', owner=cf_user, group=cf_user, perms=0664)
     dirs = [nats_run_dir, nats_log_dir, cc_run_dir, nginx_run_dir, cc_log_dir, nginx_log_dir,
             '/var/vcap/data/cloud_controller_ng/tmp', '/var/vcap/data/cloud_controller_ng/tmp/uploads',
@@ -163,15 +164,19 @@ exec bundle exec bin/cloud_controller -m -c {ccyaml}
 
 @hooks.hook()
 def start():
+    #reconfigure NGINX as upstart job and use specific config file
+    run(['/etc/init.d/nginx', 'stop'])
+    run(['update-rc.d', '-f', 'nginx', 'remove'])
     log("Starting NATS daemonized in the background")
     host.service_start('cf-nats')
     log("Starting db:migrate...")
     os.chdir(cc_dir)
+    log("Starting NGINX")
+    host.service_start('cf-nginx')
     run(['sudo', '-u', cf_user, '-g', cf_user, 'CLOUD_CONTROLLER_NG_CONFIG={}'.format(cc_config_file), 'bundle', 'exec', 'rake', 'db:migrate'])
     log("Starting cloud controller daemonized in the background")
     host.service_start('cf-cloudcontroller')
- #   log("Starting NGINX")
- #   host.service_start('cf-nginx')
+    hookenv.open_port(cc_port)
 
 
 @hooks.hook("config-changed")
@@ -217,19 +222,21 @@ def config_changed():
                 fout.write(new_line)
     os.rename(tmp_file_name, nginx_config_file)
     #TODO use pure python here
+    # check needed before adding to avoid duble
     run(['sed', '-i', r'/server_tokens/ a\  variables_hash_max_size 1024;', nginx_config_file])
 
 
 @hooks.hook()
 def stop():
-    #    host.service_stop('cf-nginx')
+    host.service_stop('cf-nginx')
     host.service_stop('cf-cloudcontroller')
     host.service_stop('cf-nats')
+    hookenv.close_port(cc_port)
 
 
 @hooks.hook('db-relation-changed')
 def db_relation_changed():
-    #TODO use python
+    #TODO use python here
     '''
     CHEMA_USER=`relation-get schema_user`
     DB_SCHEMA_PASSWORD=`relation-get schema_password`

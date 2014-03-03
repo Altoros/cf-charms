@@ -1,14 +1,17 @@
 options:
-  string-option:
-    type: string
-    default: "Default Value"
-    description: "A short description of the configuration option"
-  boolean-option:
+  cc-use-nginx:
     type: boolean
-    default: False
+    default: True
     description: "A short description of the configuration option"
-  int-option:
+  cc-port:
     type: int
-    default: 9001
-    description: "A short description of the configuration option"
-
+    default: 9022
+    description: "A port on which cloud controller listens"
+  message_bus_servers:
+    type: string
+    default: "127.0.0.1:4222"
+    description: "IP address and port of NATS server"
+  external_domain:
+    type: string
+    default: "external_domain: api2.vcap.me"
+    description: "tbd"
