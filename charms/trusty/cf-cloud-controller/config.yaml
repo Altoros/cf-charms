@@ -6,7 +6,11 @@ options:
   cc-port:
     type: int
     default: 9022
-    description: "A port on which cloud controller listens"
+    description: "External Cloud Controller port"
+  nats-port:
+    type: int
+    default: 4022
+    description: "External NAT port"
   message_bus_servers:
     type: string
     default: "127.0.0.1:4222"

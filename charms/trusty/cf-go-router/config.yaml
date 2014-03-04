@@ -1,14 +1,13 @@
 options:
-  string-option:
-    type: string
-    default: "Default Value"
-    description: "A short description of the configuration option"
-  boolean-option:
-    type: boolean
-    default: False
-    description: "A short description of the configuration option"
-  int-option:
+  port:
     type: int
-    default: 9001
-    description: "A short description of the configuration option"
-
+    default: 8080
+    description: tbd
+  user: 
+    type: string
+    default: "some_user"
+    description: "tbd"
+  pass: 
+    type: string
+    default: "some_password"
+    description: "tbd"

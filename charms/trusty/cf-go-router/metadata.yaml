@@ -1,17 +1,11 @@
 name: cf-go-router
-summary: <Fill in summary here>
-maintainer: root <root@mr-dev>
+summary: "Cloud Foundry (Go)Router"
+maintainer: Alexnder Prismakov <prismakov@gmail.com>
 description: |
-  <Multi-line description here>
+    The Router routes traffic coming into Cloud Foundry to the appropriate
+    component - usually Cloud Controller or a running application on a DEA
+    node. The router is implemented in Go.
 categories:
   - misc
 subordinate: false
-provides:
-  provides-relation:
-    interface: interface-name
-requires:
-  requires-relation:
-    interface: interface-name
-peers:
-  peer-relation:
-    interface: interface-name
+

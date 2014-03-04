@@ -33,8 +33,6 @@ cc_run_dir = '/var/vcap/sys/run/cloud_controller_ng'
 nginx_run_dir = '/var/vcap/sys/run/nginx_ccng'
 nginx_log_dir = '/var/vcap/sys/log/nginx_ccng'
 fog_connection = '/var/vcap/nfs/store'
-NATS_PORT = hookenv.config('nats-port')
-NATS_IP = hookenv.unit_private_ip()
 hooks = hookenv.Hooks()
 
 
@@ -101,17 +99,17 @@ def install():
     run(['apt-get', 'install', '-y', 'cfcloudcontroller'])
     run(['apt-get', 'install', '-y', 'cfcloudcontrollerjob'])
     host.adduser(cf_user)
-    content = '''net: {nats_ip}
-port: {nats_port}
+    content = '''net: {}
+port: 4222
 
-pid_file: {npid}/nats.pid
-log_file: {nlog}/nats.log
+pid_file: {}/nats.pid
+log_file: {}/nats.log
 
 authorization:
   user: admin
   password: "password"
   timeout: 5
-    '''.format(nats_port=NATS_PORT, nats_ip=NATS_IP, npid=nats_run_dir, nlog=nats_log_dir)
+    '''.format(hookenv.unit_private_ip(), nats_run_dir, nats_log_dir)
     host.write_file(nats_config_file, content, owner=cf_user, group=cf_user)
     #todo use Session init instead of system
     content = '''description "Cloud Foundry NATS"
@@ -178,6 +176,7 @@ def start():
     run(['sudo', '-u', cf_user, '-g', cf_user, 'CLOUD_CONTROLLER_NG_CONFIG={}'.format(cc_config_file), 'bundle', 'exec', 'rake', 'db:migrate'])
     log("Starting cloud controller daemonized in the background")
     host.service_start('cf-cloudcontroller')
+    hookenv.open_port(cc_port)
 
 
 @hooks.hook("config-changed")
@@ -193,7 +192,7 @@ def config_changed():
     with open(tmp_file_name, "wt") as fout:
         with open(cc_config_file, "rt") as fin:
             for line in fin:
-                new_line = line.replace(r'nats:nats@127.0.0.1', 'admin:password@{}'.format(NATS_IP))
+                new_line = line.replace(r'nats:nats@127.0.0.1', 'admin:password@{}'.format(hookenv.unit_private_ip()))
                 fout.write(new_line)
     os.rename(tmp_file_name, cc_config_file)
     with open(tmp_file_name, "wt") as fout:
@@ -225,10 +224,6 @@ def config_changed():
     #TODO use pure python here
     # check needed before adding to avoid duble
     run(['sed', '-i', r'/server_tokens/ a\  variables_hash_max_size 1024;', nginx_config_file])
-    #TODO reload services
-    #host.service_start('cf-cloudcontroller')
-    hookenv.open_port(cc_port)
-    hookenv.open_port(NATS_PORT)
 
 
 @hooks.hook()
@@ -236,7 +231,6 @@ def stop():
     host.service_stop('cf-nginx')
     host.service_stop('cf-cloudcontroller')
     host.service_stop('cf-nats')
-    hookenv.close_port(NATS_PORT)
     hookenv.close_port(cc_port)
 
 
