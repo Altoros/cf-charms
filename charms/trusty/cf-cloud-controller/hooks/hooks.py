@@ -6,6 +6,7 @@ import sys
 import time
 import subprocess
 
+from libcf import editfile
 from charmhelpers.cloudfoundry import fs
 from charmhelpers.core import hookenv, host
 
@@ -181,49 +182,14 @@ def start():
 
 @hooks.hook("config-changed")
 def config_changed():
-    tmp_file_name = '{}.next'.format(cc_config_file)
-    #todo optimize code below
-    with open(tmp_file_name, "wt") as fout:
-        with open(cc_config_file, "rt") as fin:
-            for line in fin:
-                new_line = line.replace('192.168.1.72', hookenv.unit_private_ip())
-                fout.write(new_line)
-    os.rename(tmp_file_name, cc_config_file)
-    with open(tmp_file_name, "wt") as fout:
-        with open(cc_config_file, "rt") as fin:
-            for line in fin:
-                new_line = line.replace(r'nats:nats@127.0.0.1', 'admin:password@{}'.format(hookenv.unit_private_ip()))
-                fout.write(new_line)
-    os.rename(tmp_file_name, cc_config_file)
-    with open(tmp_file_name, "wt") as fout:
-        with open(cc_config_file, "rt") as fin:
-            for line in fin:
-                new_line = line.replace(r'postgres://ccadmin:password@127.0.0.1:5432/ccdb', 'sqlite://{}'.format(cc_db_file))
-                fout.write(new_line)
-    os.rename(tmp_file_name, cc_config_file)
-    with open(tmp_file_name, "wt") as fout:
-        with open(cc_config_file, "rt") as fin:
-            for line in fin:
-                new_line = line.replace(r'/var/vcap/jobs/cloud_controller_ng/config/runtimes.yml', '/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/runtimes.yml')
-                fout.write(new_line)
-    os.rename(tmp_file_name, cc_config_file)
-    with open(tmp_file_name, "wt") as fout:
-        with open(cc_config_file, "rt") as fin:
-            for line in fin:
-                new_line = line.replace(r'/var/vcap/jobs/cloud_controller_ng/config/stacks.yml', '/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/stacks.yml')
-                fout.write(new_line)
-    os.rename(tmp_file_name, cc_config_file)
-    tmp_file_name = '{}.next'.format(nginx_config_file)
-    with open(tmp_file_name, "wt") as fout:
-        with open(nginx_config_file, "rt") as fin:
-            for line in fin:
-                new_line = line.replace('user', r'#user')
-                new_line = line.replace('nats:nats@127.0.0.1', 'admin:password@{}'.format(hookenv.unit_private_ip()))
-                fout.write(new_line)
-    os.rename(tmp_file_name, nginx_config_file)
-    #TODO use pure python here
-    # check needed before adding to avoid duble
-    run(['sed', '-i', r'/server_tokens/ a\  variables_hash_max_size 1024;', nginx_config_file])
+    editfile.replace(cc_config_file, [('192.168.1.72', hookenv.unit_private_ip()),
+                                      (r'nats:nats@127.0.0.1', 'admin:password@{}'.format(hookenv.unit_private_ip())),
+                                      (r'postgres://ccadmin:password@127.0.0.1:5432/ccdb', 'sqlite://{}'.format(cc_db_file)),
+                                      (r'/var/vcap/jobs/cloud_controller_ng/config/runtimes.yml', '/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/runtimes.yml'),
+                                      (r'/var/vcap/jobs/cloud_controller_ng/config/stacks.yml', '/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/stacks.yml')])
+    editfile.replace(nginx_config_file, [('user', r'#user'),
+                                         ('nats:nats@127.0.0.1', 'admin:password@{}'.format(hookenv.unit_private_ip()))])
+    editfile.insert_line(nginx_config_file, '  variables_hash_max_size 1024;', 'server_tokens')
 
 
 @hooks.hook()
