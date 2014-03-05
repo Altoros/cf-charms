@@ -6,7 +6,7 @@ charm_helpers_path = cmd_folder = os.path.realpath(os.path.abspath('../' + os.pa
 if charm_helpers_path not in sys.path:
     sys.path.insert(0, charm_helpers_path)
 print charm_helpers_path
-from core import hookenv
+from charmhelpers.core import hookenv
 
 CC_PORT = hookenv.config('cc-port')
 CF_USER = 'vcap'

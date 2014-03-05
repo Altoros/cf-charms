@@ -167,7 +167,8 @@ def config_changed():
     editfile.replace(NGINX_CONFIG_FILE, [('user', r'#user'),
                                          ('nats:nats@127.0.0.1', 'admin:password@{}'.format(NATS_IP))])
     editfile.insert_line(NGINX_CONFIG_FILE, '  variables_hash_max_size 1024;', 'server_tokens')
-
+    hookenv.open_port(NATS_PORT)
+    hookenv.open_port(CC_PORT)
 
 @hooks.hook()
 def stop():

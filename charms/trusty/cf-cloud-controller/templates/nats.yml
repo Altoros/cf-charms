@@ -1,0 +1,11 @@
+net: 10.0.3.8
+port: 4022
+
+pid_file: /var/vcap/sys/run/nats/nats.pid
+log_file: /var/vcap/sys/log/nats/nats.log
+
+authorization:
+  user: admin
+  password: "password"
+  timeout: 5
+

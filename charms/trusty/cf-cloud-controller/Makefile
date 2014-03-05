@@ -10,3 +10,5 @@ lint:
 clean:
 	find . -name '*.pyc' -delete
 	find . -name '*.bak' -delete
+run:
+	juju deploy --repository=../../. local:trusty/cf-cloud-controller cc --show-log
