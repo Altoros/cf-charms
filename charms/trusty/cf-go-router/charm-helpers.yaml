@@ -2,4 +2,6 @@ destination: hooks/charmhelpers
 branch: lp:charm-helpers
 include:
   - core
+  - fetch
+  - payload.execd
 

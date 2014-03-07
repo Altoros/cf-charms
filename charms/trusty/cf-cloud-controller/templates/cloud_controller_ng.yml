@@ -1,12 +1,12 @@
 ---
-local_route: 10.0.3.8
-port: 9022 # external CC port
+local_route: {{ cc_ip }}
+port: {{ cc_port }} # external CC port
 pid_filename: /var/vcap/sys/run/cloud_controller_ng/cloud_controller_ng.pid
 development_mode: false
 
 message_bus_servers:
 
-  - nats://admin:password@10.0.3.8:4222
+  - nats://admin:password@{{ nats_ip }}:{{ nats_port }}
 
 
 external_domain:

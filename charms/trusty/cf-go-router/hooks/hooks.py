@@ -1,22 +1,30 @@
 #!/usr/bin/env python
-# vim: et ai ts=4 sw=4:
+# vim: et sta sts ai ts=4 sw=4:
 
 import os
 import sys
 import time
 import subprocess
-
-from charmhelpers.cloudfoundry import fs
+from cloudfoundry import ROUTER_PACKAGES
 from charmhelpers.core import hookenv, host
+from charmhelpers.payload.execd import execd_preinstall
 
-from charmhelpers.cloudfoundry import \
-    (
-        CC_PORT, CF_USER, ROUTER_PORT,
-    )
+config_data = hookenv.config()
+#CC_PORT =
+#CF_USER =
+#ROUTER_PORT =
+
 from charmhelpers.core.hookenv import \
     (
         CRITICAL, ERROR, WARNING, INFO, DEBUG,
     )
+
+from charmhelpers.fetch import (
+    apt_install,
+    apt_update,
+    filter_installed_packages,
+    add_source
+)
 
 
 def Template(*args, **kw):
@@ -78,31 +86,40 @@ hooks = hookenv.Hooks()
 
 @hooks.hook()
 def install():
-    run(['apt-key', 'adv', '--keyserver', 'keyserver.ubuntu.com', '--recv-keys', '4C430C3C2828E07D'])
-    run(['add-apt-repository', 'ppa:cf-charm/ppa'])
-    run(['apt-get', 'update'])
+    execd_preinstall()
+    print 'DEBUG', config_data['source']
+    add_source(config_data['source'], config_data['key'])
+    apt_update(fatal=True)
+    apt_install(packages=ROUTER_PACKAGES, fatal=True)
+    #install_upstart_scripts()
+#    run(['apt-key', 'adv', '--keyserver', 'keyserver.ubuntu.com', '--recv-keys', '4C430C3C2828E07D'])
+#    run(['add-apt-repository', 'ppa:cf-charm/ppa'])
+#    run(['apt-get', 'update'])
     #TODO replace with real name of the package
-    run(['apt-get', 'install', '-y', 'cfgorouter'])
-    host.adduser(CF_USER)
+#    run(['apt-get', 'install', '-y', 'cfgorouter', 'cfgorouterjob'])
+    #host.adduser(CF_USER)
 
 
 @hooks.hook()
 def start():
-    log("Starting CF router daemonized in the background")
-    host.service_start('cf-router')
-    hookenv.open_port(ROUTER_PORT)
+    log("Begin start hook")
+    log("Starting router daemonized in the background")
+    #host.service_start('cf-router')
+    #hookenv.open_port(ROUTER_PORT)
 
 
 @hooks.hook("config-changed")
 def config_changed():
-    hookenv.close_port(ROUTER_PORT)
-    hookenv.open_port(ROUTER_PORT)
+    pass
+    #hookenv.close_port(ROUTER_PORT)
+    #hookenv.open_port(ROUTER_PORT)
 
 
 @hooks.hook()
 def stop():
-    host.service_stop('cf-router')
-    hookenv.close_port(ROUTER_PORT)
+    pass
+    #host.service_stop('cf-router')
+    #hookenv.close_port(ROUTER_PORT)
 
 
 @hooks.hook('db-relation-changed')

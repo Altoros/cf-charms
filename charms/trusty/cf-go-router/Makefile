@@ -12,4 +12,13 @@ clean:
 	find . -name '*.bak' -delete
 
 run:
-	juju deploy --repository=../../. local:trusty/cf-go-router --show-log
+ifdef m
+	juju deploy --to $(m) --repository=../../. local:trusty/cf-go-router router --show-log
+else
+	juju deploy --repository=../../. local:trusty/cf-go-router router --show-log
+endif
+log:
+	view -o ~/.juju/local/log/router-0-debug.log ~/.juju/local/log/unit-router-0.log
+destroy:
+	juju destroy-service router
+

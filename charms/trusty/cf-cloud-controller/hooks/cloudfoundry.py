@@ -1,15 +1,10 @@
-import sys
-import os
-import inspect
-# import hookenv module from parent directory
-charm_helpers_path = cmd_folder = os.path.realpath(os.path.abspath('../' + os.path.split(inspect.getfile(inspect.currentframe()))[0]))
-if charm_helpers_path not in sys.path:
-    sys.path.insert(0, charm_helpers_path)
-print charm_helpers_path
 from charmhelpers.core import hookenv
+import os
+import pwd
+import grp
 
-CC_PORT = hookenv.config('cc-port')
-CF_USER = 'vcap'
+CC_PACKAGES = ['cfcloudcontroller', 'cfcloudcontrollerjob']
+
 CF_DIR = '/var/lib/cloudfoundry'
 CC_DIR = '{}/cfcloudcontroller'.format(CF_DIR)
 CC_CONFIG_DIR = '{}/jobs/config'.format(CC_DIR)
@@ -26,9 +21,17 @@ NGINX_LOG_DIR = '/var/vcap/sys/log/nginx_ccng'
 
 FOG_CONNECTION = '/var/vcap/nfs/store'
 
-NATS_PORT = hookenv.config('nats-port')
-NATS_IP = hookenv.unit_private_ip()
 NATS_JOB_FILE = '/etc/init/cf-nats.conf'
 NATS_RUN_DIR = '/var/vcap/sys/run/nats'
 NATS_LOG_DIR = '/var/vcap/sys/log/nats'
 NATS_CONFIG_FILE = '{}/nats.yml'.format(CC_CONFIG_DIR)
+
+
+def chownr(path, owner, group):
+    uid = pwd.getpwnam(owner).pw_uid
+    gid = grp.getgrnam(group).gr_gid
+    for root, dirs, files in os.walk(path):
+        for momo in dirs:
+            os.chown(os.path.join(root, momo), uid, gid)
+            for momo in files:
+                os.chown(os.path.join(root, momo), uid, gid)
