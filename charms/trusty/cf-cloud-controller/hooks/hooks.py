@@ -40,13 +40,8 @@ config_data = hookenv.config()
 
 def install_upstart_scripts():
     for x in glob.glob('files/upstart/*.conf'):
+        print 'Installing upstart job:', x
         shutil.copy(x, '/etc/init/')
-#def log(msg, lvl=INFO):
-#    myname = hookenv.local_unit().replace('/', '-')
-#    ts = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
-#    with open('{}/{}-debug.log'.format(juju_log_dir, myname), 'a') as f:
-#        f.write('{} {}: {}\n'.format(ts, lvl, msg))
-#    hookenv.log(msg, lvl)
 
 
 def run(command, exit_on_error=True, quiet=False):
@@ -102,15 +97,12 @@ def emit_cc_conf():
         cc_conf.write(render_template('cloud_controller_ng.yml', cc_context))
 
 
-#def emit_nginx_conf():
-#    nginx_context = {
-#        'cc_ip': hookenv.unit_private_ip(),
-#        'cc_port': config_data['cc_port'],
-#        'nats_ip': hookenv.unit_private_ip(),
-#        'nats_port': config_data['nats_port'],
-#    }
-#    with open(CC_CONFIG_FILE, 'w') as cc_conf:
-#        cc_conf.write(render_template('cloud_controller_ng.yml', cc_context))
+def emit_nginx_conf():
+    nginx_context = {
+        'nginx_port': config_data['nginx_port'],
+    }
+    with open(NGINX_CONFIG_FILE, 'w') as nginx_conf:
+        nginx_conf.write(render_template('nginx.conf', nginx_context))
 
 
 @hooks.hook()
@@ -120,7 +112,7 @@ def install():
     apt_update(fatal=True)
     apt_install(packages=CC_PACKAGES, fatal=True)
     host.adduser('vcap')
-    #emit_natsconf()
+    emit_natsconf()
     host.write_file(CC_DB_FILE, '', owner='vcap', group='vcap', perms=0664)
     dirs = [NATS_RUN_DIR, NATS_LOG_DIR, CC_RUN_DIR, NGINX_RUN_DIR, CC_LOG_DIR, NGINX_LOG_DIR,
             '/var/vcap/data/cloud_controller_ng/tmp', '/var/vcap/data/cloud_controller_ng/tmp/uploads',
@@ -130,32 +122,35 @@ def install():
         host.mkdir(item, owner='vcap', group='vcap', perms=1777)
     chownr('/var/vcap', owner='vcap', group='vcap')
     chownr(CF_DIR, owner='vcap', group='vcap')
-
+    install_upstart_scripts()
 
 @hooks.hook()
 def start():
     #reconfigure NGINX as upstart job and use specific config file
     run(['/etc/init.d/nginx', 'stop'])
+    while host.service_running('nginx'):
+        log("nginx still running")
+        time.sleep(60)
+    os.remove('/etc/init.d/nginx')
     run(['update-rc.d', '-f', 'nginx', 'remove'])
     log("Starting NATS daemonized in the background")
-    #host.service_start('cf-nats')
+    host.service_start('cf-nats')
     log("Starting db:migrate...")
     os.chdir(CC_DIR)
-    #log("Starting NGINX")
-    #host.service_start('cf-nginx')
     run(['sudo', '-u', 'vcap', '-g', 'vcap', 'CLOUD_CONTROLLER_NG_CONFIG={}'.format(CC_CONFIG_FILE), 'bundle', 'exec', 'rake', 'db:migrate'])
-    #install_upstart_scripts()
-    #log("Starting cloud controller daemonized in the background")
-    #host.service_start('cf-cloudcontroller')
+    log("Starting cloud controller daemonized in the background")
+    host.service_start('cf-cloudcontroller')
+    log("Starting NGINX")
+    host.service_start('cf-nginx')
 
 
 @hooks.hook("config-changed")
 def config_changed():
-    #emit_cc_config()
-    #emit_natsconf()
-    #editfile.replace(NGINX_CONFIG_FILE, [('nats:nats@127.0.0.1', 'admin:password@{}'.format(hookenv.unit_private_ip()))])
+    emit_cc_conf()
+    emit_natsconf()
+    emit_nginx_conf()
     hookenv.open_port(config_data['nats_port'])
-    hookenv.open_port(config_data['cc_port'])
+    hookenv.open_port(config_data['nginx_port'])
 
 
 @hooks.hook()
@@ -164,7 +159,7 @@ def stop():
     host.service_stop('cf-cloudcontroller')
     host.service_stop('cf-nats')
     hookenv.close_port(config_data['nats_port'])
-    hookenv.close_port(config_data['cc_port'])
+    hookenv.close_port(config_data['nginx_port'])
 
 
 @hooks.hook('db-relation-changed')

@@ -102,7 +102,6 @@ def install():
 
 @hooks.hook()
 def start():
-    log("Begin start hook")
     log("Starting router daemonized in the background")
     #host.service_start('cf-router')
     #hookenv.open_port(ROUTER_PORT)

@@ -1,8 +1,12 @@
 options:
   cc_port:
     type: int
-    default: 9022
+    default: 9023
     description: "External Cloud Controller port"
+  nginx_port:
+    type: int
+    default: 9022
+    description: "Nginx external port"
   nats_port:
     type: int
     default: 4022
