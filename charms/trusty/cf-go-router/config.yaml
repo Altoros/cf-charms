@@ -1,13 +1,21 @@
 options:
-  port:
+  router_port:
     type: int
     default: 8080
     description: tbd
-  user: 
+  nats_address:
+    type: string
+    default: '0.0.0.0'
+    description: tbd
+  nats_port:
+    type: int
+    default: 4022
+    description: tbd
+  nats_user: 
     type: string
     default: "some_user"
     description: "tbd"
-  pass: 
+  nats_password: 
     type: string
     default: "some_password"
     description: "tbd"

@@ -1,1 +1,1 @@
-ROUTER_PACKAGES = ['cfgorouter', 'cfgorouterjob']
+ROUTER_PACKAGES = ['bzr', 'golang']

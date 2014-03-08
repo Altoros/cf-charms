@@ -26,6 +26,8 @@ from charmhelpers.fetch import (
     add_source
 )
 
+ROUTER_PATH = '/var/lib/cloudfoundry/cfgorouter'
+CF_DIR = '/var/lib/cloudfoundry'
 
 def Template(*args, **kw):
     """jinja2.Template with deferred jinja2 import.
@@ -87,17 +89,26 @@ hooks = hookenv.Hooks()
 @hooks.hook()
 def install():
     execd_preinstall()
-    print 'DEBUG', config_data['source']
-    add_source(config_data['source'], config_data['key'])
-    apt_update(fatal=True)
+    #add_source(config_data['source'], config_data['key'])
+    #apt_update(fatal=True)
     apt_install(packages=ROUTER_PACKAGES, fatal=True)
     #install_upstart_scripts()
-#    run(['apt-key', 'adv', '--keyserver', 'keyserver.ubuntu.com', '--recv-keys', '4C430C3C2828E07D'])
-#    run(['add-apt-repository', 'ppa:cf-charm/ppa'])
-#    run(['apt-get', 'update'])
-    #TODO replace with real name of the package
-#    run(['apt-get', 'install', '-y', 'cfgorouter', 'cfgorouterjob'])
-    #host.adduser(CF_USER)
+    host.adduser('vcap')
+    host.mkdir(CF_DIR, owner='vcap', group='vcap')
+    os.chdir(CF_DIR)
+    os.environ['GOPATH'] = CF_DIR
+    os.environ["PATH"] = CF_DIR + os.pathsep + os.environ["PATH"]
+    host.mkdir(CF_DIR + '/src/github.com/cloudfoundry', owner='vcap', group='vcap')
+    os.chdir(CF_DIR + '/src/github.com/cloudfoundry')
+    run(['git', 'clone', 'https://github.com/cloudfoundry/gorouter.git'])
+    host.mkdir(CF_DIR + '/src/github.com/stretchr', owner='vcap', group='vcap')
+    os.chdir(CF_DIR + '/src/github.com/stretchr/')
+    run(['git', 'clone', 'https://github.com/stretchr/objx.git'])
+    os.chdir(CF_DIR)
+    run(['go', 'get', '-v', './src/github.com/cloudfoundry/gorouter/...'])
+    run(['go', 'get', '-v', './...'])
+    run(['go', 'build', '-v', './...'])
+    #chownr('/var/lib/cloudfoundry', owner='vcap', group='vcap')
 
 
 @hooks.hook()

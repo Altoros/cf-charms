@@ -18,7 +18,7 @@ else
 	juju deploy --repository=../../. local:trusty/cf-go-router router --show-log
 endif
 log:
-	view -o ~/.juju/local/log/router-0-debug.log ~/.juju/local/log/unit-router-0.log
+	tail -f ~/.juju/local/log/router-0-debug.log ~/.juju/local/log/unit-router-0.log
 destroy:
 	juju destroy-service router
 
