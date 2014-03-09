@@ -1,8 +1,8 @@
-# Filesystem functions
-#TODO commit to charmhelpers/host
 import os
 import pwd
 import grp
+
+ROUTER_PACKAGES = ['bzr', 'golang']
 
 
 def chownr(path, owner, group):

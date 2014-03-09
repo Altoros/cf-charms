@@ -5,34 +5,43 @@ import os
 import sys
 import time
 import subprocess
+import glob
+import shutil
 
 from libcf import editfile
-from charmhelpers.cloudfoundry import \
+from cloudfoundry import \
     (
-        CC_PORT, CF_USER, CF_DIR, CC_DIR, CC_CONFIG_DIR,
+        CF_DIR, CC_DIR, CC_CONFIG_DIR,
         CC_CONFIG_FILE, CC_DB_FILE, CC_JOB_FILE, CC_LOG_DIR,
         CC_RUN_DIR, NGINX_JOB_FILE, NGINX_CONFIG_FILE,
-        NGINX_RUN_DIR, NGINX_LOG_DIR, FOG_CONNECTION, NATS_PORT,
-        NATS_IP, NATS_JOB_FILE, NATS_RUN_DIR, NATS_LOG_DIR,
-        NATS_CONFIG_FILE,
+        NGINX_RUN_DIR, NGINX_LOG_DIR, FOG_CONNECTION,
+        NATS_JOB_FILE, NATS_RUN_DIR, NATS_LOG_DIR,
+        NATS_CONFIG_FILE, CC_PACKAGES
     )
-from charmhelpers.cloudfoundry import fs
+from cloudfoundry import chownr
 from charmhelpers.core import hookenv, host
+from charmhelpers.payload.execd import execd_preinstall
 
 from charmhelpers.core.hookenv import \
     (
         CRITICAL, ERROR, WARNING, INFO, DEBUG,
     )
 from charmhelpers.core.hookenv import log
+from charmhelpers.fetch import (
+    apt_install,
+    apt_update,
+    filter_installed_packages,
+    add_source
+)
+from utils import render_template
 hooks = hookenv.Hooks()
+config_data = hookenv.config()
 
 
-#def log(msg, lvl=INFO):
-#    myname = hookenv.local_unit().replace('/', '-')
-#    ts = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
-#    with open('{}/{}-debug.log'.format(juju_log_dir, myname), 'a') as f:
-#        f.write('{} {}: {}\n'.format(ts, lvl, msg))
-#    hookenv.log(msg, lvl)
+def install_upstart_scripts():
+    for x in glob.glob('files/upstart/*.conf'):
+        print 'Installing upstart job:', x
+        shutil.copy(x, '/etc/init/')
 
 
 def run(command, exit_on_error=True, quiet=False):
@@ -68,105 +77,80 @@ def run(command, exit_on_error=True, quiet=False):
 hooks = hookenv.Hooks()
 
 
+def emit_natsconf():
+    natscontext = {
+        'nats_ip': hookenv.unit_private_ip(),
+        'nats_port': config_data['nats_port'],
+    }
+    with open(NATS_CONFIG_FILE, 'w') as natsconf:
+        natsconf.write(render_template('nats.yml', natscontext))
+
+
+def emit_cc_conf():
+    cc_context = {
+        'cc_ip': hookenv.unit_private_ip(),
+        'cc_port': config_data['cc_port'],
+        'nats_ip': hookenv.unit_private_ip(),
+        'nats_port': config_data['nats_port'],
+    }
+    with open(CC_CONFIG_FILE, 'w') as cc_conf:
+        cc_conf.write(render_template('cloud_controller_ng.yml', cc_context))
+
+
+def emit_nginx_conf():
+    nginx_context = {
+        'nginx_port': config_data['nginx_port'],
+    }
+    with open(NGINX_CONFIG_FILE, 'w') as nginx_conf:
+        nginx_conf.write(render_template('nginx.conf', nginx_context))
+
+
 @hooks.hook()
 def install():
-    run(['apt-key', 'adv', '--keyserver', 'keyserver.ubuntu.com', '--recv-keys', '4C430C3C2828E07D'])
-    run(['add-apt-repository', 'ppa:cf-charm/ppa'])
-    run(['apt-get', 'update'])
-    #run(['apt-get', 'install', 'curl', 'git', 'libgd3', 'libjbig0', 'libjpeg-turbo8', 'libjpeg8', 'libtiff5',\
-            #'libvpx1', 'charm-helper-sh', 'nginx-extras', 'libgd-tools', 'nginx-doc', 'fcgiwrap', 'sqlite3', 'libsqlite3-dev'])
-    run(['apt-get', 'install', '-y', 'cfcloudcontroller'])
-    run(['apt-get', 'install', '-y', 'cfcloudcontrollerjob'])
-    host.adduser(CF_USER)
-    content = '''net: {nats_ip}
-port: {nats_port}
-
-pid_file: {npid}/nats.pid
-log_file: {nlog}/nats.log
-
-authorization:
-  user: admin
-  password: "password"
-  timeout: 5
-    '''.format(nats_port=NATS_PORT, nats_ip=NATS_IP, npid=NATS_RUN_DIR, nlog=NATS_LOG_DIR)
-    host.write_file(NATS_CONFIG_FILE, content, owner=CF_USER, group=CF_USER)
-    #todo use Session init instead of system
-    content = '''description "Cloud Foundry NATS"
-author "Alexander Prismakov<prismakov@gmail.com>"
-start on starting cf-cloudcontroller or runlevel [2345]
-stop on runlevel [!2345]
-expect daemon
-#apparmor load <profile-path>
-setuid {user}
-setgid {user}
-respawn
-normal exit 0
-chdir {ccd}
-exec bundle exec nats-server -c {natsyaml} -d
-    '''.format(user=CF_USER, ccd=CC_DIR, natsyaml=NATS_CONFIG_FILE)
-    host.write_file(NATS_JOB_FILE, content)
-    content = '''description "Cloud Foundry cloud controller"
-author "Alexander Prismakov<prismakov@gmail.com>"
-start on runlevel [2345]
-stop on runlevel [!2345]
-#apparmor load <profile-path>
-setuid {user}
-setgid {user}
-respawn
-normal exit 0
-chdir {ccd}
-exec bundle exec bin/cloud_controller -m -c {ccyaml}
-    '''.format(user=CF_USER, ccd=CC_DIR, ccyaml=CC_CONFIG_FILE)
-    host.write_file(CC_JOB_FILE, content)
-    content = '''description "Cloud Foundry NGINX"
-author "Alexander Prismakov<prismakov@gmail.com>"
-start on starting cf-cloudcontroller or runlevel [2345]
-stop on runlevel [!2345]
-#apparmor load <profile-path>
-#setuid {user}
-#setgid {user}
-respawn
-normal exit 0
-exec /usr/sbin/nginx -c {nginxcf} -p /var/vcap
-    '''.format(user=CF_USER, ccd=CC_DIR, nginxcf=NGINX_CONFIG_FILE)
-    host.write_file(NGINX_JOB_FILE, content)
-    host.write_file(CC_DB_FILE, '', owner=CF_USER, group=CF_USER, perms=0664)
+    execd_preinstall()
+    add_source(config_data['source'], config_data['key'])
+    apt_update(fatal=True)
+    apt_install(packages=CC_PACKAGES, fatal=True)
+    host.adduser('vcap')
+    emit_natsconf()
+    host.write_file(CC_DB_FILE, '', owner='vcap', group='vcap', perms=0775)
     dirs = [NATS_RUN_DIR, NATS_LOG_DIR, CC_RUN_DIR, NGINX_RUN_DIR, CC_LOG_DIR, NGINX_LOG_DIR,
             '/var/vcap/data/cloud_controller_ng/tmp', '/var/vcap/data/cloud_controller_ng/tmp/uploads',
             '/var/vcap/data/cloud_controller_ng/tmp/staged_droplet_uploads',
             '/var/vcap/nfs/store']
     for item in dirs:
-        host.mkdir(item, owner=CF_USER, group=CF_USER, perms=1777)
-    fs.chownr('/var/vcap', owner=CF_USER, group=CF_USER)
-    fs.chownr(CF_DIR, owner=CF_USER, group=CF_USER)
-
+        host.mkdir(item, owner='vcap', group='vcap', perms=0775)
+    chownr('/var/vcap', owner='vcap', group='vcap')
+    chownr(CF_DIR, owner='vcap', group='vcap')
+    install_upstart_scripts()
 
 @hooks.hook()
 def start():
     #reconfigure NGINX as upstart job and use specific config file
     run(['/etc/init.d/nginx', 'stop'])
+    while host.service_running('nginx'):
+        log("nginx still running")
+        time.sleep(60)
+    os.remove('/etc/init.d/nginx')
     run(['update-rc.d', '-f', 'nginx', 'remove'])
     log("Starting NATS daemonized in the background")
     host.service_start('cf-nats')
     log("Starting db:migrate...")
     os.chdir(CC_DIR)
-    log("Starting NGINX")
-    host.service_start('cf-nginx')
-    run(['sudo', '-u', CF_USER, '-g', CF_USER, 'CLOUD_CONTROLLER_NG_CONFIG={}'.format(CC_CONFIG_FILE), 'bundle', 'exec', 'rake', 'db:migrate'])
+    run(['sudo', '-u', 'vcap', '-g', 'vcap', 'CLOUD_CONTROLLER_NG_CONFIG={}'.format(CC_CONFIG_FILE), 'bundle', 'exec', 'rake', 'db:migrate'])
     log("Starting cloud controller daemonized in the background")
     host.service_start('cf-cloudcontroller')
+    log("Starting NGINX")
+    host.service_start('cf-nginx')
 
 
 @hooks.hook("config-changed")
 def config_changed():
-    editfile.replace(CC_CONFIG_FILE, [('192.168.1.72', hookenv.unit_private_ip()),
-                                      (r'nats:nats@127.0.0.1', 'admin:password@{}'.format(NATS_IP)),
-                                      (r'postgres://ccadmin:password@127.0.0.1:5432/ccdb', 'sqlite://{}'.format(CC_DB_FILE)),
-                                      (r'/var/vcap/jobs/cloud_controller_ng/config/runtimes.yml', '/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/runtimes.yml'),
-                                      (r'/var/vcap/jobs/cloud_controller_ng/config/stacks.yml', '/var/lib/cloudfoundry/cfcloudcontroller/jobs/config/stacks.yml')])
-    editfile.replace(NGINX_CONFIG_FILE, [('user', r'#user'),
-                                         ('nats:nats@127.0.0.1', 'admin:password@{}'.format(NATS_IP))])
-    editfile.insert_line(NGINX_CONFIG_FILE, '  variables_hash_max_size 1024;', 'server_tokens')
+    emit_cc_conf()
+    emit_natsconf()
+    emit_nginx_conf()
+    hookenv.open_port(config_data['nats_port'])
+    hookenv.open_port(config_data['nginx_port'])
 
 
 @hooks.hook()
@@ -174,8 +158,8 @@ def stop():
     host.service_stop('cf-nginx')
     host.service_stop('cf-cloudcontroller')
     host.service_stop('cf-nats')
-    hookenv.close_port(NATS_PORT)
-    hookenv.close_port(CC_PORT)
+    hookenv.close_port(config_data['nats_port'])
+    hookenv.close_port(config_data['nginx_port'])
 
 
 @hooks.hook('db-relation-changed')
