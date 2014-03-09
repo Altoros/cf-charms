@@ -5,20 +5,12 @@ options:
     description: tbd
   nats_address:
     type: string
-    default: '0.0.0.0'
+    default: '10.0.3.111'
     description: tbd
   nats_port:
     type: int
     default: 4022
     description: tbd
-  nats_user: 
-    type: string
-    default: "some_user"
-    description: "tbd"
-  nats_password: 
-    type: string
-    default: "some_password"
-    description: "tbd"
   source:
     type: string
     default: 'ppa:cf-charm/ppa'

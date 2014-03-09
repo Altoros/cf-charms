@@ -113,13 +113,13 @@ def install():
     apt_install(packages=CC_PACKAGES, fatal=True)
     host.adduser('vcap')
     emit_natsconf()
-    host.write_file(CC_DB_FILE, '', owner='vcap', group='vcap', perms=0664)
+    host.write_file(CC_DB_FILE, '', owner='vcap', group='vcap', perms=0775)
     dirs = [NATS_RUN_DIR, NATS_LOG_DIR, CC_RUN_DIR, NGINX_RUN_DIR, CC_LOG_DIR, NGINX_LOG_DIR,
             '/var/vcap/data/cloud_controller_ng/tmp', '/var/vcap/data/cloud_controller_ng/tmp/uploads',
             '/var/vcap/data/cloud_controller_ng/tmp/staged_droplet_uploads',
             '/var/vcap/nfs/store']
     for item in dirs:
-        host.mkdir(item, owner='vcap', group='vcap', perms=1777)
+        host.mkdir(item, owner='vcap', group='vcap', perms=0775)
     chownr('/var/vcap', owner='vcap', group='vcap')
     chownr(CF_DIR, owner='vcap', group='vcap')
     install_upstart_scripts()

@@ -4,15 +4,14 @@
 import os
 import sys
 import time
+import glob
 import subprocess
+import shutil
 from cloudfoundry import ROUTER_PACKAGES
 from charmhelpers.core import hookenv, host
 from charmhelpers.payload.execd import execd_preinstall
 
 config_data = hookenv.config()
-#CC_PORT =
-#CF_USER =
-#ROUTER_PORT =
 
 from charmhelpers.core.hookenv import \
     (
@@ -25,9 +24,12 @@ from charmhelpers.fetch import (
     filter_installed_packages,
     add_source
 )
+from utils import render_template
+from cloudfoundry import chownr
 
 ROUTER_PATH = '/var/lib/cloudfoundry/cfgorouter'
 CF_DIR = '/var/lib/cloudfoundry'
+
 
 def Template(*args, **kw):
     """jinja2.Template with deferred jinja2 import.
@@ -39,6 +41,12 @@ def Template(*args, **kw):
     return Template(*args, **kw)
 
 hooks = hookenv.Hooks()
+
+
+def install_upstart_scripts():
+    for x in glob.glob('files/upstart/*.conf'):
+        print 'Installing upstart job:', x
+        shutil.copy(x, '/etc/init/')
 
 
 def log(msg, lvl=INFO):
@@ -83,6 +91,15 @@ def run(command, exit_on_error=True, quiet=False):
         p.returncode, command, '\n'.join(lines))
 
 
+def emit_routerconf():
+    routercontext = {
+        'nats_ip': config_data['nats_address'],
+        'nats_port': config_data['nats_port'],
+        'router_port': config_data['router_port'],
+    }
+    with open('/var/lib/cloudfoundry/config/gorouter.yml', 'w') as routerconf:
+        routerconf.write(render_template('gorouter.yml', routercontext))
+
 hooks = hookenv.Hooks()
 
 
@@ -92,44 +109,44 @@ def install():
     #add_source(config_data['source'], config_data['key'])
     #apt_update(fatal=True)
     apt_install(packages=ROUTER_PACKAGES, fatal=True)
-    #install_upstart_scripts()
     host.adduser('vcap')
-    host.mkdir(CF_DIR, owner='vcap', group='vcap')
+    dirs = [CF_DIR + '/src/github.com/cloudfoundry', CF_DIR + '/config',
+            CF_DIR + '/src/github.com/stretchr',
+            '/var/vcap/sys/run/gorouter', '/var/vcap/sys/log/gorouter']
+    for dir in dirs:
+        host.mkdir(dir, owner='vcap', group='vcap', perms=0775)
+    emit_routerconf()
+    install_upstart_scripts()
     os.chdir(CF_DIR)
     os.environ['GOPATH'] = CF_DIR
     os.environ["PATH"] = CF_DIR + os.pathsep + os.environ["PATH"]
-    host.mkdir(CF_DIR + '/src/github.com/cloudfoundry', owner='vcap', group='vcap')
     os.chdir(CF_DIR + '/src/github.com/cloudfoundry')
     run(['git', 'clone', 'https://github.com/cloudfoundry/gorouter.git'])
-    host.mkdir(CF_DIR + '/src/github.com/stretchr', owner='vcap', group='vcap')
     os.chdir(CF_DIR + '/src/github.com/stretchr/')
     run(['git', 'clone', 'https://github.com/stretchr/objx.git'])
     os.chdir(CF_DIR)
     run(['go', 'get', '-v', './src/github.com/cloudfoundry/gorouter/...'])
     run(['go', 'get', '-v', './...'])
     run(['go', 'build', '-v', './...'])
-    #chownr('/var/lib/cloudfoundry', owner='vcap', group='vcap')
+    chownr('/var/lib/cloudfoundry', owner='vcap', group='vcap')
+    chownr('/var/vcap', owner='vcap', group='vcap')
 
 
 @hooks.hook()
 def start():
     log("Starting router daemonized in the background")
-    #host.service_start('cf-router')
-    #hookenv.open_port(ROUTER_PORT)
+    host.service_start('gorouter')
 
 
 @hooks.hook("config-changed")
 def config_changed():
-    pass
-    #hookenv.close_port(ROUTER_PORT)
-    #hookenv.open_port(ROUTER_PORT)
+    hookenv.open_port(config_data['router_port'])
 
 
 @hooks.hook()
 def stop():
-    pass
-    #host.service_stop('cf-router')
-    #hookenv.close_port(ROUTER_PORT)
+    host.service_stop('gorouter')
+    hookenv.close_port(config_data['router_port'])
 
 
 @hooks.hook('db-relation-changed')
