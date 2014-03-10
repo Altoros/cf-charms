@@ -1,0 +1,20 @@
+name: cf-nats
+summary: "Cloud Foundry NATS"
+maintainer: Alexnder Prismakov <prismakov@gmail.com>
+description: |
+        TBD
+categories:
+  - misc
+subordinate: false
+provides:
+  provides-relation:
+    interface: cf-cloud-controller
+#requires:
+#  db:
+#    interface: pgsql
+#  nats:
+#    interface: nats
+#peers:
+#  peer-relation:
+#    interface: interface-name
+

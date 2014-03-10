@@ -5,7 +5,7 @@ options:
     description: tbd
   nats_address:
     type: string
-    default: '10.0.3.111'
+    default: '10.0.3.193'
     description: tbd
   nats_port:
     type: int

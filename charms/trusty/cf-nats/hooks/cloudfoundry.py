@@ -21,6 +21,11 @@ NGINX_LOG_DIR = '/var/vcap/sys/log/nginx_ccng'
 
 FOG_CONNECTION = '/var/vcap/nfs/store'
 
+NATS_JOB_FILE = '/etc/init/cf-nats.conf'
+NATS_RUN_DIR = '/var/vcap/sys/run/nats'
+NATS_LOG_DIR = '/var/vcap/sys/log/nats'
+NATS_CONFIG_FILE = '{}/nats.yml'.format(CC_CONFIG_DIR)
+
 
 def chownr(path, owner, group):
     uid = pwd.getpwnam(owner).pw_uid

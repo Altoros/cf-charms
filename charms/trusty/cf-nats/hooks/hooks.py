@@ -15,7 +15,8 @@ from cloudfoundry import \
         CC_CONFIG_FILE, CC_DB_FILE, CC_JOB_FILE, CC_LOG_DIR,
         CC_RUN_DIR, NGINX_JOB_FILE, NGINX_CONFIG_FILE,
         NGINX_RUN_DIR, NGINX_LOG_DIR, FOG_CONNECTION,
-        CC_PACKAGES
+        NATS_JOB_FILE, NATS_RUN_DIR, NATS_LOG_DIR,
+        NATS_CONFIG_FILE, CC_PACKAGES
     )
 from cloudfoundry import chownr
 from charmhelpers.core import hookenv, host
@@ -76,23 +77,13 @@ def run(command, exit_on_error=True, quiet=False):
 hooks = hookenv.Hooks()
 
 
-def emit_cc_conf():
-    cc_context = {
-        'cc_ip': hookenv.unit_private_ip(),
-        'cc_port': config_data['cc_port'],
-        'nats_ip': config_data['nats_address'],
+def emit_natsconf():
+    natscontext = {
+        'nats_ip': hookenv.unit_private_ip(),
         'nats_port': config_data['nats_port'],
     }
-    with open(CC_CONFIG_FILE, 'w') as cc_conf:
-        cc_conf.write(render_template('cloud_controller_ng.yml', cc_context))
-
-
-def emit_nginx_conf():
-    nginx_context = {
-        'nginx_port': config_data['nginx_port'],
-    }
-    with open(NGINX_CONFIG_FILE, 'w') as nginx_conf:
-        nginx_conf.write(render_template('nginx.conf', nginx_context))
+    with open(NATS_CONFIG_FILE, 'w') as natsconf:
+        natsconf.write(render_template('nats.yml', natscontext))
 
 
 @hooks.hook()
@@ -102,9 +93,10 @@ def install():
     apt_update(fatal=True)
     apt_install(packages=CC_PACKAGES, fatal=True)
     host.adduser('vcap')
+    emit_natsconf()
     host.write_file(CC_DB_FILE, '', owner='vcap', group='vcap', perms=0775)
-    dirs = [CC_RUN_DIR, NGINX_RUN_DIR, CC_LOG_DIR, NGINX_LOG_DIR,
-            '/var/vcap/data/cloud_controller_ng/tmp/uploads',
+    dirs = [NATS_RUN_DIR, NATS_LOG_DIR, CC_RUN_DIR, NGINX_RUN_DIR, CC_LOG_DIR, NGINX_LOG_DIR,
+            '/var/vcap/data/cloud_controller_ng/tmp', '/var/vcap/data/cloud_controller_ng/tmp/uploads',
             '/var/vcap/data/cloud_controller_ng/tmp/staged_droplet_uploads',
             '/var/vcap/nfs/store']
     for item in dirs:
@@ -112,7 +104,6 @@ def install():
     chownr('/var/vcap', owner='vcap', group='vcap')
     chownr(CF_DIR, owner='vcap', group='vcap')
     install_upstart_scripts()
-
 
 @hooks.hook()
 def start():
@@ -123,27 +114,20 @@ def start():
         time.sleep(60)
     os.remove('/etc/init.d/nginx')
     run(['update-rc.d', '-f', 'nginx', 'remove'])
-    log("Starting db:migrate...")
-    os.chdir(CC_DIR)
-    run(['sudo', '-u', 'vcap', '-g', 'vcap', 'CLOUD_CONTROLLER_NG_CONFIG={}'.format(CC_CONFIG_FILE), 'bundle', 'exec', 'rake', 'db:migrate'])
-    log("Starting cloud controller daemonized in the background")
-    host.service_start('cf-cloudcontroller')
-    log("Starting NGINX")
-    host.service_start('cf-nginx')
+    log("Starting NATS daemonized in the background")
+    host.service_start('cf-nats')
 
 
 @hooks.hook("config-changed")
 def config_changed():
-    emit_cc_conf()
-    emit_nginx_conf()
-    hookenv.open_port(config_data['nginx_port'])
+    emit_natsconf()
+    hookenv.open_port(config_data['nats_port'])
 
 
 @hooks.hook()
 def stop():
-    host.service_stop('cf-nginx')
-    host.service_stop('cf-cloudcontroller')
-    hookenv.close_port(config_data['nginx_port'])
+    host.service_stop('cf-nats')
+    hookenv.close_port(config_data['nats_port'])
 
 
 @hooks.hook('db-relation-changed')
