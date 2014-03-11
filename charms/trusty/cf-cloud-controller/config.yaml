@@ -13,7 +13,7 @@ options:
     description: "External NAT port"
   nats_address:
     type: string
-    default: "10.0.3.193"
+    default: "10.0.3.137"
     description: "IP address and port of NATS server"
   external_domain:
     type: string

@@ -115,8 +115,9 @@ def install():
             '/var/vcap/sys/run/gorouter', '/var/vcap/sys/log/gorouter']
     for dir in dirs:
         host.mkdir(dir, owner='vcap', group='vcap', perms=0775)
-    emit_routerconf()
     install_upstart_scripts()
+    emit_routerconf()
+    #os.getcwd()
     os.chdir(CF_DIR)
     os.environ['GOPATH'] = CF_DIR
     os.environ["PATH"] = CF_DIR + os.pathsep + os.environ["PATH"]
@@ -128,6 +129,7 @@ def install():
     run(['go', 'get', '-v', './src/github.com/cloudfoundry/gorouter/...'])
     run(['go', 'get', '-v', './...'])
     run(['go', 'build', '-v', './...'])
+    os.chdir(hookenv.charm_dir())
     chownr('/var/lib/cloudfoundry', owner='vcap', group='vcap')
     chownr('/var/vcap', owner='vcap', group='vcap')
 
@@ -140,6 +142,7 @@ def start():
 
 @hooks.hook("config-changed")
 def config_changed():
+    emit_routerconf()
     hookenv.open_port(config_data['router_port'])
 
 
@@ -149,8 +152,19 @@ def stop():
     hookenv.close_port(config_data['router_port'])
 
 
-@hooks.hook('db-relation-changed')
-def cc_relation_changed():
+@hooks.hook('nats-relation-changed')
+def nats_relation_changed():
+    nats_address = hookenv.relation_get('nats_address')
+    log(nats_address)
+
+
+@hooks.hook('nats-relation-broken')
+def nats_relation_broken():
+    pass
+
+
+@hooks.hook('nats-relation-departed')
+def nats_relation_departed():
     pass
 
 

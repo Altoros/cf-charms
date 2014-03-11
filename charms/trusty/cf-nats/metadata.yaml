@@ -7,8 +7,8 @@ categories:
   - misc
 subordinate: false
 provides:
-  provides-relation:
-    interface: cf-cloud-controller
+  nats:
+    interface: nats
 #requires:
 #  db:
 #    interface: pgsql

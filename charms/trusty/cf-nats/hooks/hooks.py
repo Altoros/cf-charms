@@ -2,40 +2,49 @@
 # vim: et ai ts=4 sw=4:
 
 import os
+import pwd
+import grp
 import sys
-import time
 import subprocess
 import glob
 import shutil
+import cPickle as pickle
 
-from libcf import editfile
-from cloudfoundry import \
-    (
-        CF_DIR, CC_DIR, CC_CONFIG_DIR,
-        CC_CONFIG_FILE, CC_DB_FILE, CC_JOB_FILE, CC_LOG_DIR,
-        CC_RUN_DIR, NGINX_JOB_FILE, NGINX_CONFIG_FILE,
-        NGINX_RUN_DIR, NGINX_LOG_DIR, FOG_CONNECTION,
-        NATS_JOB_FILE, NATS_RUN_DIR, NATS_LOG_DIR,
-        NATS_CONFIG_FILE, CC_PACKAGES
-    )
-from cloudfoundry import chownr
 from charmhelpers.core import hookenv, host
-from charmhelpers.payload.execd import execd_preinstall
+from charmhelpers.core.hookenv import log, DEBUG, ERROR
+#from charmhelpers.payload.execd import execd_preinstall
 
-from charmhelpers.core.hookenv import \
-    (
-        CRITICAL, ERROR, WARNING, INFO, DEBUG,
-    )
-from charmhelpers.core.hookenv import log
 from charmhelpers.fetch import (
-    apt_install,
-    apt_update,
-    filter_installed_packages,
-    add_source
+    apt_install, apt_update, add_source, filter_installed_packages
 )
 from utils import render_template
+
+
 hooks = hookenv.Hooks()
-config_data = hookenv.config()
+
+
+class State(dict):
+    """Encapsulate state common to the unit for republishing to relations."""
+    def __init__(self, state_file):
+        super(State, self).__init__()
+        self._state_file = state_file
+        self.load()
+
+    def load(self):
+        '''Load stored state from local disk.'''
+        if os.path.exists(self._state_file):
+            state = pickle.load(open(self._state_file, 'rb'))
+        else:
+            state = {}
+        self.clear()
+
+        self.update(state)
+
+    def save(self):
+        '''Store state to local disk.'''
+        state = {}
+        state.update(self)
+        pickle.dump(state, open(self._state_file, 'wb'))
 
 
 def install_upstart_scripts():
@@ -74,9 +83,6 @@ def run(command, exit_on_error=True, quiet=False):
         p.returncode, command, '\n'.join(lines))
 
 
-hooks = hookenv.Hooks()
-
-
 def emit_natsconf():
     natscontext = {
         'nats_ip': hookenv.unit_private_ip(),
@@ -86,42 +92,59 @@ def emit_natsconf():
         natsconf.write(render_template('nats.yml', natscontext))
 
 
+def chownr(path, owner, group):
+    uid = pwd.getpwnam(owner).pw_uid
+    gid = grp.getgrnam(group).gr_gid
+    for root, dirs, files in os.walk(path):
+        for momo in dirs:
+            os.chown(os.path.join(root, momo), uid, gid)
+            for momo in files:
+                os.chown(os.path.join(root, momo), uid, gid)
+
+
 @hooks.hook()
 def install():
-    execd_preinstall()
     add_source(config_data['source'], config_data['key'])
     apt_update(fatal=True)
-    apt_install(packages=CC_PACKAGES, fatal=True)
+    apt_install(packages=filter_installed_packages(NATS_PACKAGES), fatal=True)
     host.adduser('vcap')
-    emit_natsconf()
-    host.write_file(CC_DB_FILE, '', owner='vcap', group='vcap', perms=0775)
-    dirs = [NATS_RUN_DIR, NATS_LOG_DIR, CC_RUN_DIR, NGINX_RUN_DIR, CC_LOG_DIR, NGINX_LOG_DIR,
-            '/var/vcap/data/cloud_controller_ng/tmp', '/var/vcap/data/cloud_controller_ng/tmp/uploads',
-            '/var/vcap/data/cloud_controller_ng/tmp/staged_droplet_uploads',
-            '/var/vcap/nfs/store']
+    dirs = [NATS_RUN_DIR, NATS_LOG_DIR]
     for item in dirs:
         host.mkdir(item, owner='vcap', group='vcap', perms=0775)
     chownr('/var/vcap', owner='vcap', group='vcap')
     chownr(CF_DIR, owner='vcap', group='vcap')
     install_upstart_scripts()
+    emit_natsconf()
+    if not 'port' in local_state:
+        local_state.setdefault('port', config_data['nats_port'])
+        local_state.save()
+
 
 @hooks.hook()
 def start():
-    #reconfigure NGINX as upstart job and use specific config file
-    run(['/etc/init.d/nginx', 'stop'])
-    while host.service_running('nginx'):
-        log("nginx still running")
-        time.sleep(60)
-    os.remove('/etc/init.d/nginx')
-    run(['update-rc.d', '-f', 'nginx', 'remove'])
-    log("Starting NATS daemonized in the background")
+    log("Starting NATS as upstart job")
     host.service_start('cf-nats')
 
 
 @hooks.hook("config-changed")
 def config_changed():
+    config_data = hookenv.config()
     emit_natsconf()
-    hookenv.open_port(config_data['nats_port'])
+    if 'port' in local_state:
+        if local_state['port'] != config_data['nats_port']:
+            log('Nats port in State:' + str(local_state['port']) +
+                ', new port:' + str(config_data['nats_port']), DEBUG)
+            hookenv.close_port(local_state['nats_port'])
+            hookenv.open_port(config_data['nats_port'])
+            if host.service_running('cf-nats'):
+                host.service_restart('cf-nats')
+            local_state['nats_port'] = config_data['nats_port']
+            local_state.save()
+    else:
+        local_state.setdefault('port', config_data['nats_port'])
+        local_state.save()
+        if host.service_running('cf-nats'):
+            host.service_restart('cf-nats')
 
 
 @hooks.hook()
@@ -130,52 +153,25 @@ def stop():
     hookenv.close_port(config_data['nats_port'])
 
 
-@hooks.hook('db-relation-changed')
-def db_relation_changed():
-    #TODO use python here
-    '''
-    CHEMA_USER=`relation-get schema_user`
-    DB_SCHEMA_PASSWORD=`relation-get schema_password`
-    DB_USER=`relation-get user`
-    DB_USER_PASSWORD=`relation-get password`
-    DB_DB=`relation-get database`
-    DB_HOST=`relation-get private-address`
-    DB_HOST_PORT=`relation-get port`
-    DB_HOST_STATE=`relation-get state`
-
-    juju-log $DB_SCHEMA_USER, $DB_SCHEMA_PASSWORD, $DB_USER, $DB_USER_PASSWORD, $DB_DB, $DB_HOST, $DB_HOST_PORT, $DB_HOST_STATE
-
-    os.environ['CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
-    os.environ['CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
-    RUN_DIR=/var/vcap/sys/run/cloud_controller_ng
-    LOG_DIR=/var/vcap/sys/log/cloud_controller_ng
-    TMPDIR=/var/vcap/data/cloud_controller_ng/tmp
-    PIDFILE=$RUN_DIR/cloud_controller_ng.pid
-    NFS_SHARE=/var/vcap/nfs
-
-    mkdir -p $RUN_DIR
-    mkdir -p $LOG_DIR
-    mkdir -p $TMPDIR
-
-    mkdir -p /var/vcap/nfs/shared
-
-    sed -i "s|ccadmin:password@127.0.0.1:5432/ccdb|$DB_SCHEMA_USER:$DB_SCHEMA_PASSWORD@$DB_HOST:$DB_HOST_PORT/$DB_DB|" $CLOUD_CONTROLLER_NG_CONFIG
-
-    juju-log $JUJU_REMOTE_UNIT modified its settings
-    juju-log Relation settings:
-    relation-get
-    juju-log Relation members:
-    relation-list
-    '''
-
-
 @hooks.hook('nats-relation-changed')
 def nats_relation_changed():
-    pass
+    for relid in hookenv.relation_ids('nats'):
+        hookenv.relation_set(relid, nats_address=hookenv.unit_private_ip())
+        hookenv.relation_set(relid, nats_port=config_data['nats_port'])
 
 
+#################### Global variables ####################
+config_data = hookenv.config()
 hook_name = os.path.basename(sys.argv[0])
-juju_log_dir = "/var/log/juju"
+#TODO replace with actual nats package
+NATS_PACKAGES = ['cfcloudcontroller', 'cfcloudcontrollerjob']
+
+CF_DIR = '/var/lib/cloudfoundry'
+NATS_RUN_DIR = '/var/vcap/sys/run/nats'
+NATS_LOG_DIR = '/var/vcap/sys/log/nats'
+NATS_CONFIG_FILE = os.path.join(CF_DIR,
+                                'cfcloudcontroller/jobs/config/nats.yml')
+local_state = State('local_state.pickle')
 
 if __name__ == '__main__':
     # Hook and context overview. The various replication and client

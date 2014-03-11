@@ -7,34 +7,47 @@ import time
 import subprocess
 import glob
 import shutil
+import pwd
+import grp
 
-from libcf import editfile
-from cloudfoundry import \
-    (
-        CF_DIR, CC_DIR, CC_CONFIG_DIR,
-        CC_CONFIG_FILE, CC_DB_FILE, CC_JOB_FILE, CC_LOG_DIR,
-        CC_RUN_DIR, NGINX_JOB_FILE, NGINX_CONFIG_FILE,
-        NGINX_RUN_DIR, NGINX_LOG_DIR, FOG_CONNECTION,
-        CC_PACKAGES
-    )
-from cloudfoundry import chownr
 from charmhelpers.core import hookenv, host
 from charmhelpers.payload.execd import execd_preinstall
 
-from charmhelpers.core.hookenv import \
-    (
-        CRITICAL, ERROR, WARNING, INFO, DEBUG,
-    )
 from charmhelpers.core.hookenv import log
 from charmhelpers.fetch import (
-    apt_install,
-    apt_update,
-    filter_installed_packages,
-    add_source
+    apt_install, apt_update, add_source
 )
 from utils import render_template
 hooks = hookenv.Hooks()
 config_data = hookenv.config()
+
+CC_PACKAGES = ['cfcloudcontroller', 'cfcloudcontrollerjob']
+
+CF_DIR = '/var/lib/cloudfoundry'
+CC_DIR = '{}/cfcloudcontroller'.format(CF_DIR)
+CC_CONFIG_DIR = '{}/jobs/config'.format(CC_DIR)
+CC_CONFIG_FILE = '{}/cloud_controller_ng.yml'.format(CC_CONFIG_DIR)
+CC_DB_FILE = '{}/db/cc.db'.format(CC_DIR)
+CC_JOB_FILE = '/etc/init/cf-cloudcontroller.conf'
+CC_LOG_DIR = '/var/vcap/sys/log/cloud_controller_ng'
+CC_RUN_DIR = '/var/vcap/sys/run/cloud_controller_ng'
+
+NGINX_JOB_FILE = '/etc/init/cf-nginx.conf'
+NGINX_CONFIG_FILE = '{}/nginx.conf'.format(CC_CONFIG_DIR)
+NGINX_RUN_DIR = '/var/vcap/sys/run/nginx_ccng'
+NGINX_LOG_DIR = '/var/vcap/sys/log/nginx_ccng'
+
+FOG_CONNECTION = '/var/vcap/nfs/store'
+
+
+def chownr(path, owner, group):
+    uid = pwd.getpwnam(owner).pw_uid
+    gid = grp.getgrnam(group).gr_gid
+    for root, dirs, files in os.walk(path):
+        for momo in dirs:
+            os.chown(os.path.join(root, momo), uid, gid)
+            for momo in files:
+                os.chown(os.path.join(root, momo), uid, gid)
 
 
 def install_upstart_scripts():
@@ -46,7 +59,7 @@ def install_upstart_scripts():
 def run(command, exit_on_error=True, quiet=False):
     '''Run a command and return the output.'''
     if not quiet:
-        log("Running {!r}".format(command), DEBUG)
+        log("Running {!r}".format(command), hookenv.DEBUG)
     p = subprocess.Popen(
         command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
         shell=isinstance(command, basestring))
@@ -66,7 +79,7 @@ def run(command, exit_on_error=True, quiet=False):
         return '\n'.join(lines)
 
     if p.returncode != 0 and exit_on_error:
-        log("ERROR: {}".format(p.returncode), ERROR)
+        log("ERROR: {}".format(p.returncode), hookenv.ERROR)
         sys.exit(p.returncode)
 
     raise subprocess.CalledProcessError(
@@ -125,7 +138,9 @@ def start():
     run(['update-rc.d', '-f', 'nginx', 'remove'])
     log("Starting db:migrate...")
     os.chdir(CC_DIR)
-    run(['sudo', '-u', 'vcap', '-g', 'vcap', 'CLOUD_CONTROLLER_NG_CONFIG={}'.format(CC_CONFIG_FILE), 'bundle', 'exec', 'rake', 'db:migrate'])
+    run(['sudo', '-u', 'vcap', '-g', 'vcap',
+        'CLOUD_CONTROLLER_NG_CONFIG={}'.format(CC_CONFIG_FILE),
+        'bundle', 'exec', 'rake', 'db:migrate'])
     log("Starting cloud controller daemonized in the background")
     host.service_start('cf-cloudcontroller')
     log("Starting NGINX")
@@ -148,45 +163,22 @@ def stop():
 
 @hooks.hook('db-relation-changed')
 def db_relation_changed():
-    #TODO use python here
-    '''
-    CHEMA_USER=`relation-get schema_user`
-    DB_SCHEMA_PASSWORD=`relation-get schema_password`
-    DB_USER=`relation-get user`
-    DB_USER_PASSWORD=`relation-get password`
-    DB_DB=`relation-get database`
-    DB_HOST=`relation-get private-address`
-    DB_HOST_PORT=`relation-get port`
-    DB_HOST_STATE=`relation-get state`
-
-    juju-log $DB_SCHEMA_USER, $DB_SCHEMA_PASSWORD, $DB_USER, $DB_USER_PASSWORD, $DB_DB, $DB_HOST, $DB_HOST_PORT, $DB_HOST_STATE
-
-    os.environ['CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
-    os.environ['CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
-    RUN_DIR=/var/vcap/sys/run/cloud_controller_ng
-    LOG_DIR=/var/vcap/sys/log/cloud_controller_ng
-    TMPDIR=/var/vcap/data/cloud_controller_ng/tmp
-    PIDFILE=$RUN_DIR/cloud_controller_ng.pid
-    NFS_SHARE=/var/vcap/nfs
-
-    mkdir -p $RUN_DIR
-    mkdir -p $LOG_DIR
-    mkdir -p $TMPDIR
-
-    mkdir -p /var/vcap/nfs/shared
-
-    sed -i "s|ccadmin:password@127.0.0.1:5432/ccdb|$DB_SCHEMA_USER:$DB_SCHEMA_PASSWORD@$DB_HOST:$DB_HOST_PORT/$DB_DB|" $CLOUD_CONTROLLER_NG_CONFIG
-
-    juju-log $JUJU_REMOTE_UNIT modified its settings
-    juju-log Relation settings:
-    relation-get
-    juju-log Relation members:
-    relation-list
-    '''
+    pass
 
 
 @hooks.hook('nats-relation-changed')
 def nats_relation_changed():
+    nats_address = hookenv.relation_get('nats_address')
+    log(nats_address)
+
+
+@hooks.hook('nats-relation-broken')
+def nats_relation_broken():
+    pass
+
+
+@hooks.hook('nats-relation-departed')
+def nats_relation_departed():
     pass
 
 
