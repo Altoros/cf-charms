@@ -1,8 +1,21 @@
 options:
+  nats_address:
+    type: string
+    default: ""
+    description: |
+      Adress NATS lictening on. If not set will be replaced with unit's IP
   nats_port:
     type: int
     default: 4022
     description: "External NAT port"
+  nats_user:
+    type: string
+    default: "admin"
+    description: "NATS require authentication. User name"
+  nats_password:
+    type: string
+    default: "password"
+    description: "NATS require authentication. Password"
   source:
     type: string
     default: 'ppa:cf-charm/ppa'
