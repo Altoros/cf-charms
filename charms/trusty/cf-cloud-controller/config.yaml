@@ -7,17 +7,21 @@ options:
     type: int
     default: 9022
     description: "Nginx external port"
-  nats_port:
-    type: int
-    default: 4022
-    description: "External NAT port"
-  nats_address:
-    type: string
-    default: "10.0.3.137"
-    description: "IP address and port of NATS server"
   external_domain:
     type: string
-    default: "external_domain: api2.vcap.me"
+    default: "api2.vcap.me"
+    description: "tbd"
+  domain: 
+    type: string
+    default: "example.net"
+    description: "tbd"
+  system_domain: 
+    type: string
+    default: "example.net"
+    description: "tbd"
+  system_domain_organization: 
+    type: string
+    default: "example.net"
     description: "tbd"
   source:
     type: string
