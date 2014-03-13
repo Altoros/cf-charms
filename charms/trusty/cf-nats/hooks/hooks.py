@@ -85,16 +85,11 @@ def run(command, exit_on_error=True, quiet=False):
 
 def emit_natsconf():
     natscontext = {
-        'nats_port': config_data['nats_port'],
-        'nats_user': config_data['nats_user'],
-        'nats_password': config_data['nats_password'],
+        'nats_port': local_state['nats_port'],
+        'nats_user': local_state['nats_user'],
+        'nats_password': local_state['nats_password'],
+        'nats_address': local_state['nats_address'],
     }
-    log('NATS address:'+config_data['nats_address'], DEBUG)
-    if not config_data['nats_address']:
-        log('nats_address is empty. using unit\'s IP')
-        natscontext['nats_address'] = hookenv.unit_private_ip()
-    else:
-        natscontext['nats_address'] = config_data['nats_address']
     with open(NATS_CONFIG_FILE, 'w') as natsconf:
         natsconf.write(render_template('nats.yml', natscontext))
 
@@ -121,10 +116,11 @@ def install():
     chownr('/var/vcap', owner='vcap', group='vcap')
     chownr(CF_DIR, owner='vcap', group='vcap')
     install_upstart_scripts()
-    emit_natsconf()
-    if not 'nats_port' in local_state:
-        local_state.setdefault('nats_port', config_data['nats_port'])
-        local_state.save()
+    if 'nats_address' in local_state:
+        local_state['nats_address'] = hookenv.unit_private_ip()
+    else:
+        local_state.setdefault('nats_address', hookenv.unit_private_ip())
+    local_state.save()
 
 
 @hooks.hook()
@@ -135,19 +131,23 @@ def start():
 
 @hooks.hook("config-changed")
 def config_changed():
-    config_data = hookenv.config()
-    emit_natsconf()
     if 'nats_port' in local_state:
         if local_state['nats_port'] != config_data['nats_port']:
-            log('Nats port in State:' + str(local_state['nats_port']) +
-                ', new port:' + str(config_data['nats_port']), DEBUG)
             hookenv.close_port(local_state['nats_port'])
             local_state['nats_port'] = config_data['nats_port']
     else:
-        log('nats_port not found in State data', DEBUG)
         local_state.setdefault('nats_port', config_data['nats_port'])
+    if not 'nats_user' in local_state:
+        local_state.setdefault('nats_user', config_data['nats_user'])
+    else:
+        local_state['nats_user'] = config_data['nats_user']
+    if not 'nats_password' in local_state:
+        local_state.setdefault('nats_password', config_data['nats_password'])
+    else:
+        local_state['nats_password'] = config_data['nats_password']
     local_state.save()
-    hookenv.open_port(config_data['nats_port'])
+    emit_natsconf()
+    hookenv.open_port(local_state['nats_port'])
     if host.service_running('cf-nats'):
         host.service_restart('cf-nats')
 
@@ -155,14 +155,32 @@ def config_changed():
 @hooks.hook()
 def stop():
     host.service_stop('cf-nats')
-    hookenv.close_port(config_data['nats_port'])
+    hookenv.close_port(local_state['nats_port'])
 
 
 @hooks.hook('nats-relation-changed')
 def nats_relation_changed():
     for relid in hookenv.relation_ids('nats'):
-        hookenv.relation_set(relid, nats_address=config_data['nats_address'],
-                             nats_port=config_data['nats_port'])
+        log('NATS address:' + local_state['nats_address'] + ':'
+            + str(local_state['nats_port']), DEBUG)
+        log('NATS user:' + local_state['nats_user'] + ':'
+            + str(local_state['nats_password']), DEBUG)
+        hookenv.relation_set(relid,
+                             nats_address=local_state['nats_address'],
+                             nats_port=local_state['nats_port'],
+                             nats_user=local_state['nats_user'],
+                             nats_password=local_state['nats_password'],
+                             )
+
+
+@hooks.hook('nats-relation-joined')
+def nats_relation_joined():
+    log('Hi from joined hook')
+
+
+@hooks.hook('nats-relation-broken')
+def nats_relation_broken():
+    log('Hi from broken hook')
 
 
 #################### Global variables ####################
