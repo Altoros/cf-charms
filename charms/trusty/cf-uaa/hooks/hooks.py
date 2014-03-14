@@ -61,6 +61,18 @@ def install():
     run(['rm', '-rf', '/var/lib/cloudfoundry/cfuaa/jobs/config/*'])
 
 
+@hooks.hook()
+def start():
+    log("start hook for UAA is called")
+
+@hooks.hook()
+def stop():
+    log("stop hook for UAA is called")
+
+@hooks.hook('config-changed')
+def config_changed():
+    log("config_changed hook for UAA is called")
+
 
 #################### Global variables ####################
 PACKAGES = ['cfuaa', 'cfuaajob', 'cfregistrar']
