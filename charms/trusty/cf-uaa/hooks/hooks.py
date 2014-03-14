@@ -32,6 +32,8 @@ from charmhelpers.fetch import (
     add_source
 )
 
+from utils import render_template
+
 
 config_data = hookenv.config()
 hooks = hookenv.Hooks()
@@ -59,17 +61,33 @@ def install():
         os.chdir('lib')
         subprocess.call(['wget', 'https://bitbucket.org/xerial/sqlite-jdbc/downloads/sqlite-jdbc-3.7.2.jar'])
     log("Cleaning up old config files", DEBUG)
-    subprocess.call(['rm', '-rf', '/var/lib/cloudfoundry/cfuaa/jobs/config/*'])
+    subprocess.call(['rm', '-rf', os.path.join(CONFIG_DIR, '*')])
 
+
+    with open(UAA_CONFIG_FILE, 'w') as uaa_config_file:
+        uaa_config_file.write(render_template('uaa.yml', {}))
+
+    with open(VARZ_CONFIG_FILE, 'w') as varz_config_file:
+        varz_config_file.write(render_template('varz.yml', {varz_user: 'user', varz_password: 'password'}))
+
+    tompcat_varz_folder = os.path.join(TOMCAT_HOME, 'webapps', 'varz', 'WEB-INF')
+    subprocess.call('mkdir -p {}'.format(tompcat_varz_folder))
+    os.mv(VARZ_CONFIG_FILE, tompcat_varz_folder)
+    os.system('export UAA_CONFIG_PATH={}'.format(CONFIG_DIR))
 
 @hooks.hook()
 def start():
     log("start hook for UAA is called")
+    os.chdir(TOMCAT_HOME)
+    subprocess.call(['sudo', '-u', 'vcap', '-g', 'vcap',
+                     'UAA_CONFIG_PATH={}'.format(CONFIG_DIR), './bin/startup.sh'])
 
 
 @hooks.hook()
 def stop():
     log("stop hook for UAA is called")
+    os.chdir(TOMCAT_HOME)
+    subprocess.call(['sudo', '-u', 'vcap', '-g', 'vcap', './bin/shutdown.sh'])
 
 
 @hooks.hook('config-changed')
@@ -86,7 +104,9 @@ CF_DIR = '/var/lib/cloudfoundry'
 PACKAGES = ['cfuaa', 'cfuaajob', 'cfregistrar']
 RUN_DIR = '/var/vcap/sys/run/uaa'
 LOG_DIR = '/var/vcap/sys/log/uaa'
-CONFIG_FILE = os.path.join(CF_DIR, 'jobs/uaa/config/uaa.yml')
+CONFIG_DIR = os.path.join(CF_DIR, 'jobs/uaa/config')
+UAA_CONFIG_FILE = os.path.join(CONFIG_DIR, 'uaa.yml')
+VARZ_CONFIG_FILE = os.path.join(CONFIG_DIR, 'varz.yml')
 TOMCAT_HOME = '/var/lib/cloudfoundry/cfuaa/tomcat'
 SQLITE_JDBC_LIBRARY = 'sqlite-jdbc-3.7.2.jar'
 
