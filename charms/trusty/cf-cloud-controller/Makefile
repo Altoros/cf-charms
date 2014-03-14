@@ -5,8 +5,7 @@ test: lint
 
 lint:
 	@echo "Lint check (flake8)"
-	@flake8 --ignore=F401,E501\
-	    hooks tests
+	@flake8 hooks tests
 clean:
 	find . -name '*.pyc' -delete
 	find . -name '*.bak' -delete

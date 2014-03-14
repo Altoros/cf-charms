@@ -6,14 +6,14 @@ development_mode: false
 
 message_bus_servers:
 
-  - nats://admin:password@{{ nats_ip }}:{{ nats_port }}
+  - nats://{{ nats_user }}:{{ nats_password }}@{{ nats_address }}:{{ nats_port }}
 
 
 external_domain:
-  - api.example.net
+  - {{ external_domain }}
 
-system_domain_organization:
-system_domain: example.net
+system_domain_organization: {{ system_domain_organization }}
+system_domain: {{ system_domain }}
 app_domains: [ example.net ]
 default_app_memory: 1024
 

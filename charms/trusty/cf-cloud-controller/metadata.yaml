@@ -12,11 +12,11 @@ subordinate: false
 provides:
   provides-relation:
     interface: cf-cloud-controller
-#requires:
+requires:
 #  db:
 #    interface: pgsql
-#  nats:
-#    interface: nats
+   nats:
+     interface: nats
 #peers:
 #  peer-relation:
 #    interface: interface-name

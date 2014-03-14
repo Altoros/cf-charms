@@ -8,4 +8,6 @@ description: |
 categories:
   - misc
 subordinate: false
-
+requires:
+  nats:
+    interface: nats

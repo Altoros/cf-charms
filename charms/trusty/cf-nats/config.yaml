@@ -3,6 +3,14 @@ options:
     type: int
     default: 4022
     description: "External NAT port"
+  nats_user:
+    type: string
+    default: "nats"
+    description: "NATS require authentication. User name"
+  nats_password:
+    type: string
+    default: "changemeplease"
+    description: "NATS require authentication. Password"
   source:
     type: string
     default: 'ppa:cf-charm/ppa'

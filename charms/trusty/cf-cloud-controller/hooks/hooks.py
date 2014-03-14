@@ -7,34 +7,47 @@ import time
 import subprocess
 import glob
 import shutil
+import pwd
+import grp
+import cPickle as pickle
 
-from libcf import editfile
-from cloudfoundry import \
-    (
-        CF_DIR, CC_DIR, CC_CONFIG_DIR,
-        CC_CONFIG_FILE, CC_DB_FILE, CC_JOB_FILE, CC_LOG_DIR,
-        CC_RUN_DIR, NGINX_JOB_FILE, NGINX_CONFIG_FILE,
-        NGINX_RUN_DIR, NGINX_LOG_DIR, FOG_CONNECTION,
-        CC_PACKAGES
-    )
-from cloudfoundry import chownr
 from charmhelpers.core import hookenv, host
 from charmhelpers.payload.execd import execd_preinstall
 
-from charmhelpers.core.hookenv import \
-    (
-        CRITICAL, ERROR, WARNING, INFO, DEBUG,
-    )
 from charmhelpers.core.hookenv import log
 from charmhelpers.fetch import (
-    apt_install,
-    apt_update,
-    filter_installed_packages,
-    add_source
+    apt_install, apt_update, add_source
 )
 from utils import render_template
 hooks = hookenv.Hooks()
-config_data = hookenv.config()
+
+CC_PACKAGES = ['cfcloudcontroller', 'cfcloudcontrollerjob']
+
+CF_DIR = '/var/lib/cloudfoundry'
+CC_DIR = '{}/cfcloudcontroller'.format(CF_DIR)
+CC_CONFIG_DIR = '{}/jobs/config'.format(CC_DIR)
+CC_CONFIG_FILE = '{}/cloud_controller_ng.yml'.format(CC_CONFIG_DIR)
+CC_DB_FILE = '{}/db/cc.db'.format(CC_DIR)
+CC_JOB_FILE = '/etc/init/cf-cloudcontroller.conf'
+CC_LOG_DIR = '/var/vcap/sys/log/cloud_controller_ng'
+CC_RUN_DIR = '/var/vcap/sys/run/cloud_controller_ng'
+
+NGINX_JOB_FILE = '/etc/init/cf-nginx.conf'
+NGINX_CONFIG_FILE = '{}/nginx.conf'.format(CC_CONFIG_DIR)
+NGINX_RUN_DIR = '/var/vcap/sys/run/nginx_ccng'
+NGINX_LOG_DIR = '/var/vcap/sys/log/nginx_ccng'
+
+FOG_CONNECTION = '/var/vcap/nfs/store'
+
+
+def chownr(path, owner, group):
+    uid = pwd.getpwnam(owner).pw_uid
+    gid = grp.getgrnam(group).gr_gid
+    for root, dirs, files in os.walk(path):
+        for momo in dirs:
+            os.chown(os.path.join(root, momo), uid, gid)
+            for momo in files:
+                os.chown(os.path.join(root, momo), uid, gid)
 
 
 def install_upstart_scripts():
@@ -46,7 +59,7 @@ def install_upstart_scripts():
 def run(command, exit_on_error=True, quiet=False):
     '''Run a command and return the output.'''
     if not quiet:
-        log("Running {!r}".format(command), DEBUG)
+        log("Running {!r}".format(command), hookenv.DEBUG)
     p = subprocess.Popen(
         command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
         shell=isinstance(command, basestring))
@@ -66,7 +79,7 @@ def run(command, exit_on_error=True, quiet=False):
         return '\n'.join(lines)
 
     if p.returncode != 0 and exit_on_error:
-        log("ERROR: {}".format(p.returncode), ERROR)
+        log("ERROR: {}".format(p.returncode), hookenv.ERROR)
         sys.exit(p.returncode)
 
     raise subprocess.CalledProcessError(
@@ -76,23 +89,119 @@ def run(command, exit_on_error=True, quiet=False):
 hooks = hookenv.Hooks()
 
 
+class State(dict):
+    """Encapsulate state common to the unit for republishing to relations."""
+    def __init__(self, state_file):
+        super(State, self).__init__()
+        self._state_file = state_file
+        self.load()
+
+    def load(self):
+        '''Load stored state from local disk.'''
+        if os.path.exists(self._state_file):
+            state = pickle.load(open(self._state_file, 'rb'))
+        else:
+            state = {}
+        self.clear()
+
+        self.update(state)
+
+    def save(self):
+        '''Store state to local disk.'''
+        state = {}
+        state.update(self)
+        pickle.dump(state, open(self._state_file, 'wb'))
+
+
+#TODO move to class
+def alter_state_value(name, value):
+    log('State\'s value altered:' + name + '->' + str(value))
+    if name in local_state:
+        local_state[name] = value
+    else:
+        local_state.setdefault(name, value)
+    local_state.save()
+
+
+def set_cc_conf_state(state):
+    alter_state_value('cc_conf', state)
+
+
 def emit_cc_conf():
-    cc_context = {
-        'cc_ip': hookenv.unit_private_ip(),
-        'cc_port': config_data['cc_port'],
-        'nats_ip': config_data['nats_address'],
-        'nats_port': config_data['nats_port'],
-    }
+    cc_context = {}
+    cc_context.setdefault('domain', config_data['domain'])
+    if 'nats_user' in local_state:
+        cc_context.setdefault('nats_user', local_state['nats_user'])
+    else:
+        return False
+    if 'nats_password' in local_state:
+        cc_context.setdefault('nats_password', local_state['nats_password'])
+    else:
+        return False
+    cc_context.setdefault('system_domain_organization',
+                          config_data['system_domain_organization'])
+    cc_context.setdefault('cc_ip', hookenv.unit_private_ip())
+    if config_data['external_domain']:
+        cc_context.setdefault('external_domain',
+                              config_data['external_domain'])
+    else:
+        cc_context.setdefault('external_domain', 'localhost')
+    if config_data['system_domain']:
+        cc_context.setdefault('system_domain',
+                              config_data['system_domain'])
+    else:
+        log('No system_domain')
+        return False
+    if config_data['cc_port']:
+        cc_context.setdefault('cc_port', config_data['cc_port'])
+    else:
+        set_cc_conf_state('')
+        return False
+    if 'nats_port' in local_state:
+        cc_context.setdefault('nats_port', local_state['nats_port'])
+    else:
+        set_cc_conf_state('')
+        return False
+    if 'nats_address' in local_state:
+        cc_context.setdefault('nats_address', local_state['nats_address'])
+    else:
+        set_cc_conf_state('')
+        return False
+    os.chdir(hookenv.charm_dir())
     with open(CC_CONFIG_FILE, 'w') as cc_conf:
         cc_conf.write(render_template('cloud_controller_ng.yml', cc_context))
+    set_cc_conf_state('ok')
+    return True
 
 
 def emit_nginx_conf():
     nginx_context = {
         'nginx_port': config_data['nginx_port'],
     }
+    os.chdir(hookenv.charm_dir())
     with open(NGINX_CONFIG_FILE, 'w') as nginx_conf:
         nginx_conf.write(render_template('nginx.conf', nginx_context))
+
+
+def port_config_changed(port):
+    '''Cheks if value of port changed close old port and open a new one'''
+    if port in local_state:
+        if local_state[port] != config_data[port]:
+            hookenv.close_port(local_state[port])
+            local_state[port] = config_data[port]
+    else:
+        local_state.setdefault(port, config_data[port])
+    local_state.save()
+    hookenv.open_port(config_data[port])
+
+
+def cc_db_migrate():
+    log("Starting db:migrate...")
+    os.chdir(CC_DIR)
+    run(['sudo', '-u', 'vcap', '-g', 'vcap',
+        'CLOUD_CONTROLLER_NG_CONFIG={}'.format(CC_CONFIG_FILE),
+        'bundle', 'exec', 'rake', 'db:migrate'])
+    alter_state_value('ccdbmigrated', 'true')
 
 
 @hooks.hook()
@@ -112,86 +221,79 @@ def install():
     chownr('/var/vcap', owner='vcap', group='vcap')
     chownr(CF_DIR, owner='vcap', group='vcap')
     install_upstart_scripts()
-
-
-@hooks.hook()
-def start():
+    run(['update-rc.d', '-f', 'nginx', 'remove'])
     #reconfigure NGINX as upstart job and use specific config file
     run(['/etc/init.d/nginx', 'stop'])
     while host.service_running('nginx'):
         log("nginx still running")
         time.sleep(60)
     os.remove('/etc/init.d/nginx')
-    run(['update-rc.d', '-f', 'nginx', 'remove'])
-    log("Starting db:migrate...")
-    os.chdir(CC_DIR)
-    run(['sudo', '-u', 'vcap', '-g', 'vcap', 'CLOUD_CONTROLLER_NG_CONFIG={}'.format(CC_CONFIG_FILE), 'bundle', 'exec', 'rake', 'db:migrate'])
-    log("Starting cloud controller daemonized in the background")
-    host.service_start('cf-cloudcontroller')
-    log("Starting NGINX")
-    host.service_start('cf-nginx')
 
 
 @hooks.hook("config-changed")
 def config_changed():
-    emit_cc_conf()
+    port_config_changed('nginx_port')
     emit_nginx_conf()
-    hookenv.open_port(config_data['nginx_port'])
+    if host.service_running('cf-nginx'):
+        #TODO replace with config reload
+        host.service_restart('cf-nginx')
+        if host.service_running('cf-cloudcontroller') and emit_cc_conf():
+            host.service_restart('cf-cloudcontroller')
+
+
+@hooks.hook()
+def start():
+    if ('cc_conf' in local_state) and ('ccdbmigrated' in local_state):
+        if not host.service_running('cf-cloudcontroller'):
+            log("Starting cloud controller as upstart job")
+            host.service_start('cf-cloudcontroller')
+        if (not host.service_running('cf-nginx')) and \
+                host.service_running('cf-cloudcontroller'):
+            log("Starting NGINX")
+            host.service_start('cf-nginx')
+    hookenv.open_port(local_state['nginx_port'])
 
 
 @hooks.hook()
 def stop():
-    host.service_stop('cf-nginx')
-    host.service_stop('cf-cloudcontroller')
-    hookenv.close_port(config_data['nginx_port'])
+    if host.service_running('cf-nginx'):
+        host.service_stop('cf-nginx')
+    if host.service_running('cf-cloudcontroller'):
+        host.service_stop('cf-cloudcontroller')
+    hookenv.close_port(local_state['nginx_port'])
 
 
 @hooks.hook('db-relation-changed')
 def db_relation_changed():
-    #TODO use python here
-    '''
-    CHEMA_USER=`relation-get schema_user`
-    DB_SCHEMA_PASSWORD=`relation-get schema_password`
-    DB_USER=`relation-get user`
-    DB_USER_PASSWORD=`relation-get password`
-    DB_DB=`relation-get database`
-    DB_HOST=`relation-get private-address`
-    DB_HOST_PORT=`relation-get port`
-    DB_HOST_STATE=`relation-get state`
-
-    juju-log $DB_SCHEMA_USER, $DB_SCHEMA_PASSWORD, $DB_USER, $DB_USER_PASSWORD, $DB_DB, $DB_HOST, $DB_HOST_PORT, $DB_HOST_STATE
-
-    os.environ['CONFIG_DIR=/var/lib/cloudfoundry/cfcloudcontroller/jobs/config
-    os.environ['CLOUD_CONTROLLER_NG_CONFIG=$CONFIG_DIR/cloud_controller_ng.yml
-    RUN_DIR=/var/vcap/sys/run/cloud_controller_ng
-    LOG_DIR=/var/vcap/sys/log/cloud_controller_ng
-    TMPDIR=/var/vcap/data/cloud_controller_ng/tmp
-    PIDFILE=$RUN_DIR/cloud_controller_ng.pid
-    NFS_SHARE=/var/vcap/nfs
-
-    mkdir -p $RUN_DIR
-    mkdir -p $LOG_DIR
-    mkdir -p $TMPDIR
-
-    mkdir -p /var/vcap/nfs/shared
-
-    sed -i "s|ccadmin:password@127.0.0.1:5432/ccdb|$DB_SCHEMA_USER:$DB_SCHEMA_PASSWORD@$DB_HOST:$DB_HOST_PORT/$DB_DB|" $CLOUD_CONTROLLER_NG_CONFIG
-
-    juju-log $JUJU_REMOTE_UNIT modified its settings
-    juju-log Relation settings:
-    relation-get
-    juju-log Relation members:
-    relation-list
-    '''
+    pass
 
 
 @hooks.hook('nats-relation-changed')
 def nats_relation_changed():
+    for relid in hookenv.relation_ids('nats'):
+        alter_state_value('nats_address', hookenv.relation_get('nats_address'))
+        alter_state_value('nats_port', hookenv.relation_get('nats_port'))
+        alter_state_value('nats_user', hookenv.relation_get('nats_user'))
+        alter_state_value('nats_password',
+                          hookenv.relation_get('nats_password'))
+    if emit_cc_conf():
+        if not 'ccdbmigrated' in local_state:
+            cc_db_migrate()
+        start()
+
+
+@hooks.hook('nats-relation-broken')
+def nats_relation_broken():
+    stop()
+
+
+@hooks.hook('nats-relation-departed')
+def nats_relation_departed():
     pass
 
-
+config_data = hookenv.config()
 hook_name = os.path.basename(sys.argv[0])
-juju_log_dir = "/var/log/juju"
+local_state = State('local_state.pickle')
 
 if __name__ == '__main__':
     # Hook and context overview. The various replication and client
