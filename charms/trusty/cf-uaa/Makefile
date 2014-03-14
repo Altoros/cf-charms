@@ -5,21 +5,19 @@ test: lint
 
 lint:
 	@echo "Lint check (flake8)"
-	@flake8 --exclude=hooks/charmhelpers hooks 
+	@flake8 --ignore=F401,E501\
+	    hooks tests
 clean:
 	find . -name '*.pyc' -delete
 	find . -name '*.bak' -delete
-run: lint deploy
-log:
-	tail -f ~/.juju/local/log/unit-uaa-0.log
-destroy:
-	juju destroy-service uaa
-deploy:
-
+run:
 ifdef m
 	juju deploy --to $(m) --repository=../../. local:trusty/cf-uaa uaa --show-log
 else
 	juju deploy --repository=../../. local:trusty/cf-uaa uaa --show-log
 endif
-upgrade:
-	juju upgrade-charm --repository=../../. uaa --show-log
+log:
+	tail -f ~/.juju/local/log/unit-uaa-0.log
+destroy:
+	juju destroy-service uaa
+	

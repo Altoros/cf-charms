@@ -75,10 +75,24 @@ def config_changed():
 
 
 #################### Global variables ####################
-PACKAGES = ['cfuaa', 'cfuaajob', 'cfregistrar']
+config_data = hookenv.config()
+hook_name = os.path.basename(sys.argv[0])
+
 CF_DIR = '/var/lib/cloudfoundry'
+
+PACKAGES = ['cfuaa', 'cfuaajob', 'cfregistrar']
 RUN_DIR = '/var/vcap/sys/run/uaa'
 LOG_DIR = '/var/vcap/sys/log/uaa'
 CONFIG_FILE = os.path.join(CF_DIR, 'jobs/uaa/config/uaa.yml')
 TOMCAT_HOME = '/var/lib/cloudfoundry/cfuaa/tomcat'
 SQLITE_JDBC_LIBRARY = 'sqlite-jdbc-3.7.2.jar'
+
+
+if __name__ == '__main__':
+    # Hook and context overview. The various replication and client
+    # hooks interact in complex ways.
+    log("Running {} hook".format(hook_name))
+    if hookenv.relation_id():
+        log("Relation {} with {}".format(
+            hookenv.relation_id(), hookenv.remote_unit()))
+    hooks.execute(sys.argv)
