@@ -5,7 +5,4 @@
 # failing to account for a debconf question on a dependency, or trying to pull
 # from github without installing git first.
 
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4C430C3C2828E07D
-add-apt-repository ppa:cf-charm/ppa
-apt-get update
-apt-get install -y cfuaa
+apt-get install -y uaa
