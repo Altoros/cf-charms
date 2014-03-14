@@ -2,6 +2,12 @@
 # vim: et ai ts=4 sw=4:
 
 import os
+import pwd
+import grp
+import sys
+import glob
+import shutil
+
 
 def chownr(path, owner, group):
     uid = pwd.getpwnam(owner).pw_uid
@@ -11,6 +17,7 @@ def chownr(path, owner, group):
             os.chown(os.path.join(root, momo), uid, gid)
             for momo in files:
                 os.chown(os.path.join(root, momo), uid, gid)
+
 
 def install_upstart_scripts():
     for x in glob.glob('files/upstart/*.conf'):

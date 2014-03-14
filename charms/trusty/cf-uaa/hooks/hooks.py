@@ -6,6 +6,7 @@ import pwd
 import grp
 import sys
 import subprocess
+# from subprocess import call
 import glob
 #import shutil
 import cPickle as pickle
@@ -51,23 +52,25 @@ def install():
     utils.chownr('/var/vcap', owner='vcap', group='vcap')
     utils.chownr(CF_DIR, owner='vcap', group='vcap')
     log("Stopping Tomcat ...", DEBUG)
-    execute("/etc/init.d/tomcat7 stop")
+    os.system("/etc/init.d/tomcat7 stop")
     log("Installing SQLite jdbc driver jar into Tomcat lib directory if it doesn't exists ...", DEBUG)
     os.chdir(TOMCAT_HOME)
     if (not os.path.isfile("lib/" + SQLITE_JDBC_LIBRARY)):
         os.chdir('lib')
-        run(['wget', 'https://bitbucket.org/xerial/sqlite-jdbc/downloads/sqlite-jdbc-3.7.2.jar'])
+        subprocess.call(['wget', 'https://bitbucket.org/xerial/sqlite-jdbc/downloads/sqlite-jdbc-3.7.2.jar'])
     log("Cleaning up old config files", DEBUG)
-    run(['rm', '-rf', '/var/lib/cloudfoundry/cfuaa/jobs/config/*'])
+    subprocess.call(['rm', '-rf', '/var/lib/cloudfoundry/cfuaa/jobs/config/*'])
 
 
 @hooks.hook()
 def start():
     log("start hook for UAA is called")
 
+
 @hooks.hook()
 def stop():
     log("stop hook for UAA is called")
+
 
 @hooks.hook('config-changed')
 def config_changed():
