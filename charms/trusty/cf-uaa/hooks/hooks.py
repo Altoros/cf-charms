@@ -63,6 +63,7 @@ def install():
     log("Cleaning up old config files", DEBUG)
     subprocess.call(['rm', '-rf', os.path.join(CONFIG_DIR, '*')])
 
+    os.chdir(hookenv.charm_dir())
     with open(UAA_CONFIG_FILE, 'w') as uaa_config_file:
         uaa_config_file.write(render_template('uaa.yml', {}))
 
@@ -70,9 +71,11 @@ def install():
         varz_config_file.write(render_template('varz.yml', {'varz_user': 'user', 'varz_password': 'password'}))
 
     tompcat_varz_folder = os.path.join(TOMCAT_HOME, 'webapps', 'varz', 'WEB-INF')
-    subprocess.call('mkdir -p {}'.format(tompcat_varz_folder))
-    os.mv(VARZ_CONFIG_FILE, tompcat_varz_folder)
-    os.system('export UAA_CONFIG_PATH={}'.format(CONFIG_DIR))
+    os.system('sudo -u vcap -g vcap mkdir -p {}'.format(tompcat_varz_folder))
+    os.system('sudo -u vcap -g vcap mkdir -p /var/vcap/jobs/uaa')
+    os.system('sudo -u vcap -g vcap ln -s {} /var/vcap/jobs/uaa/config'.format(CONFIG_DIR))
+    os.copy(VARZ_CONFIG_FILE, tompcat_varz_folder)
+    os.system('sudo -u vcap -g vcap export UAA_CONFIG_PATH={}'.format(CONFIG_DIR))
 
 
 @hooks.hook()

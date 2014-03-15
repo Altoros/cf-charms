@@ -1,4 +1,4 @@
-/var/lib/cloudfoundry/cfuaa/jobs/config
+# /var/lib/cloudfoundry/cfuaa/jobs/config
 ---
 
 name: uaa
