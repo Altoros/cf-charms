@@ -1,4 +1,4 @@
-xbase_dir: /var/lib/cloudfoundry/dea-ng
+base_dir: /var/lib/cloudfoundry/dea_ng
  
 logging:
   level: debug
@@ -11,10 +11,11 @@ resources:
  
 nats_servers:
   - nats://{{ nats_user }}:{{ nats_password }}@{{ nats_address }}:{{ nats_port }}/
+# nats_uri: nats://admin:admin@<nats-unit-public-address>:4022/
  
-pid_filename: /var/vcap/sys/run/dea_ng.pid
+pid_filename: /var/lib/cloudfoundry/dea_ng/pids/dea_ng.pid
  
-warden_socket: /var/lib/cloudfoundry/dea-ng/pids/warden.sock
+warden_socket: /var/lib/cloudfoundry/dea_ng/pids/warden.sock
  
 evacuation_bail_out_time_in_seconds: 900
  
@@ -26,10 +27,10 @@ domain: "localhost.xip.io"
 staging:
   enabled: true
   platform_config:
-    cache: /home/vagrant/dea_ng_basedir/cache
+    cache: /var/lib/cloudfoundry/dea_ng/cache
   environment:
     PATH: /usr/local/bin
-    BUILDPACK_CACHE: /home/vagrant/dea_ng_basedir/buildpack_cache
+    BUILDPACK_CACHE: /var/lib/cloudfoundry/dea_ng/buildpack_cache
   memory_limit_mb: 1024
   disk_limit_mb: 2048
   max_staging_duration: 900 # 15 minutes
@@ -50,4 +51,4 @@ stacks:
  
 placement_properties:
   zone: "CRAZY_TOWN"
-
+ 
