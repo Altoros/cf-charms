@@ -1,0 +1,56 @@
+# /var/lib/cloudfoundry/cfuaa/jobs/config
+---
+
+name: uaa
+
+spring_profiles:
+
+logging:
+  config: /var/lib/cloudfoundry/cfuaa/jobs/config/log4j.properties
+
+issuer.uri: https://uaa.example.net
+
+oauth:
+  authorize:
+    ssl: true
+  client:
+    autoapprove:
+      - cf
+      - login
+      - portal
+      - support-signon
+  clients:
+    admin:
+      authorized-grant-types: client_credentials
+      authorities: clients.read,clients.write,clients.secret,uaa.admin,scim.read,password.write
+      id: admin
+      secret: "admin"
+    cloud_controller:
+      authorized-grant-types: client_credentials
+      authorities: scim.read,scim.write,password.write
+      id: cloud_controller
+      secret: ""
+      access-token-validity: 604800
+    cf:
+      id: cf
+      override: true
+      authorized-grant-types: implicit,password,refresh_token
+      scope: cloud_controller.read,cloud_controller.write,openid,password.write,cloud_controller.admin,scim.read,scim.write
+      authorities: uaa.none
+      access-token-validity: 600
+      refresh-token-validity: 2592000
+    login:
+      id: login
+      override: true
+      secret: ""
+      authorized-grant-types: authorization_code,client_credentials,refresh_token
+      authorities: oauth.login
+      scope: openid,oauth.approvals
+      redirect-uri: https://login.example.net
+
+scim:
+  userids_enabled: false
+  user.override: true
+  users:
+    - admin|admin|scim.write,scim.read,openid,cloud_controller.admin
+
