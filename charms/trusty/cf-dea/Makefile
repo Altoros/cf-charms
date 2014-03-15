@@ -10,6 +10,8 @@ clean:
 	find . -name '*.pyc' -delete
 	find . -name '*.bak' -delete
 run: lint deploy
+vlog:
+	view ~/.juju/local/log/unit-dea-0.log
 log:
 	tail -f ~/.juju/local/log/unit-dea-0.log
 destroy:
@@ -23,3 +25,7 @@ else
 endif
 upgrade:
 	juju upgrade-charm --repository=../../. dea --show-log
+js:
+	juju status
+jss:
+	juju status dea

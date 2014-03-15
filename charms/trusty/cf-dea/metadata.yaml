@@ -5,3 +5,6 @@ description: |
   <Multi-line description here>
 categories:
   - misc
+requires:
+  nats:
+    interface: nats
