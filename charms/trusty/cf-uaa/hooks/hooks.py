@@ -63,17 +63,17 @@ def install():
     log("Cleaning up old config files", DEBUG)
     subprocess.call(['rm', '-rf', os.path.join(CONFIG_DIR, '*')])
 
-
     with open(UAA_CONFIG_FILE, 'w') as uaa_config_file:
         uaa_config_file.write(render_template('uaa.yml', {}))
 
     with open(VARZ_CONFIG_FILE, 'w') as varz_config_file:
-        varz_config_file.write(render_template('varz.yml', {varz_user: 'user', varz_password: 'password'}))
+        varz_config_file.write(render_template('varz.yml', {'varz_user': 'user', 'varz_password': 'password'}))
 
     tompcat_varz_folder = os.path.join(TOMCAT_HOME, 'webapps', 'varz', 'WEB-INF')
     subprocess.call('mkdir -p {}'.format(tompcat_varz_folder))
     os.mv(VARZ_CONFIG_FILE, tompcat_varz_folder)
     os.system('export UAA_CONFIG_PATH={}'.format(CONFIG_DIR))
+
 
 @hooks.hook()
 def start():
