@@ -1,8 +1,3 @@
-# /var/lib/cloudfoundry/cfuaa/tomcat/webapps/varz/WEB-INF
-# mkdir /var/vcap/jobs/uaa
-# mkdir /var/vcap/sys/run/
-# ln /var/lib/cloudfoundry/cfuaa/jobs/config /var/vcap/jobs/uaa/config
-
 ---
 pid: /var/vcap/sys/run/uaa.pid
 
@@ -13,3 +8,4 @@ varz:
 
 logging:
   config: /var/vcap/jobs/uaa/config/varz.log4j.properties
+  #config: /var/lib/cloudfoundry/cfuaa/jobs/config/varz.log4j.properties
