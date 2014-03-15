@@ -44,7 +44,7 @@ def install():
     add_source(config_data['source'], config_data['key'])
     apt_update(fatal=True)
     log("Installing required packages", DEBUG)
-    apt_install(packages=filter_installed_packages(PACKAGES), fatal=True)
+    apt_install(packages = filter_installed_packages(PACKAGES), fatal = True)
     log("Creating 'vcap' user which will run everything related to CF", DEBUG)
     host.adduser('vcap')
     log("Creating necessary directories for pids and logs", DEBUG)
@@ -104,7 +104,7 @@ CF_DIR = '/var/lib/cloudfoundry'
 PACKAGES = ['cfuaa', 'cfuaajob', 'cfregistrar']
 RUN_DIR = '/var/vcap/sys/run/uaa'
 LOG_DIR = '/var/vcap/sys/log/uaa'
-CONFIG_DIR = os.path.join(CF_DIR, 'jobs/uaa/config')
+CONFIG_DIR = os.path.join(CF_DIR, 'cfuaa/jobs/config')
 UAA_CONFIG_FILE = os.path.join(CONFIG_DIR, 'uaa.yml')
 VARZ_CONFIG_FILE = os.path.join(CONFIG_DIR, 'varz.yml')
 TOMCAT_HOME = '/var/lib/cloudfoundry/cfuaa/tomcat'
