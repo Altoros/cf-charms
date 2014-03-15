@@ -25,7 +25,3 @@ else
 endif
 upgrade:
 	juju upgrade-charm --repository=../../. uaa --show-log
-js:
-	juju status
-jss:
-	juju status uaa

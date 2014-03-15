@@ -100,7 +100,7 @@ def install():
     log("Installing required packages", DEBUG)
     apt_install(packages=filter_installed_packages(PACKAGES), fatal=True)
     host.adduser('vcap')
-    dirs = [RUN_DIR, LOG_DIR]
+    dirs = [RUN_DIR, LOG_DIR, '/var/vcap/jobs/uaa']
     for item in dirs:
         host.mkdir(item, owner='vcap', group='vcap', perms=0775)
     chownr('/var/vcap', owner='vcap', group='vcap')
@@ -112,8 +112,11 @@ def install():
     log('Installing SQLite jdbc driver jar into Tomcat lib directory', DEBUG)
     run(['wget', 'https://bitbucket.org/xerial/sqlite-jdbc/downloads/'
         'sqlite-jdbc-3.7.2.jar'])
-    #log("Cleaning up old config files", DEBUG)
-    #execute("rm -rf /var/lib/cloudfoundry/cfuaa/jobs/config/*")
+    host.mkdir(os.path.join(CF_DIR, 'uaa'), owner='vcap',
+               group='vcap', perms=0775)
+    log("Cleaning up old config files", DEBUG)
+    shutil.rmtree(os.path.join(CONFIG_PATH))
+    shutil.copytree('files/config', CONFIG_PATH)
 
 
 @hooks.hook("config-changed")
@@ -148,7 +151,8 @@ PACKAGES = ['cfuaa', 'cfuaajob', 'cfregistrar']
 CF_DIR = '/var/lib/cloudfoundry'
 RUN_DIR = '/var/vcap/sys/run/uaa'
 LOG_DIR = '/var/vcap/sys/log/uaa'
-CONFIG_FILE = os.path.join(CF_DIR, 'jobs/uaa/config/uaa.yml')
+CONFIG_PATH = os.path.join(CF_DIR, 'jobs/uaa/config')
+CONFIG_FILE = os.path.join(CONFIG_PATH, 'uaa.yml')
 TOMCAT_HOME = '/var/lib/cloudfoundry/cfuaa/tomcat'
 SQLITE_JDBC_LIBRARY = 'sqlite-jdbc-3.7.2.jar'
 config_data = hookenv.config()
