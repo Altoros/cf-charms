@@ -112,11 +112,11 @@ def install():
     log('Installing SQLite jdbc driver jar into Tomcat lib directory', DEBUG)
     run(['wget', 'https://bitbucket.org/xerial/sqlite-jdbc/downloads/'
         'sqlite-jdbc-3.7.2.jar'])
-    host.mkdir(os.path.join(CF_DIR, 'uaa'), owner='vcap',
-               group='vcap', perms=0775)
     log("Cleaning up old config files", DEBUG)
-    shutil.rmtree(os.path.join(CONFIG_PATH))
-    shutil.copytree('files/config', CONFIG_PATH)
+    shutil.rmtree(CONFIG_PATH)
+    shutil.copytree(os.path.join(hookenv.charm_dir(),
+                    'files/config'), CONFIG_PATH)
+    os.chdir(TOMCAT_HOME)
 
 
 @hooks.hook("config-changed")
@@ -151,7 +151,7 @@ PACKAGES = ['cfuaa', 'cfuaajob', 'cfregistrar']
 CF_DIR = '/var/lib/cloudfoundry'
 RUN_DIR = '/var/vcap/sys/run/uaa'
 LOG_DIR = '/var/vcap/sys/log/uaa'
-CONFIG_PATH = os.path.join(CF_DIR, 'jobs/uaa/config')
+CONFIG_PATH = os.path.join(CF_DIR, 'cfuaa', 'jobs', 'config')
 CONFIG_FILE = os.path.join(CONFIG_PATH, 'uaa.yml')
 TOMCAT_HOME = '/var/lib/cloudfoundry/cfuaa/tomcat'
 SQLITE_JDBC_LIBRARY = 'sqlite-jdbc-3.7.2.jar'
