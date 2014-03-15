@@ -7,5 +7,8 @@ description: |
   It can also authenticate users with their Cloud Foundry credentials, and can act as an SSO service using those credentials (or others).
   It has endpoints for managing user accounts and for registering OAuth2 clients, as well as various other management functions.
 categories:
-  - PaaS
+  - misc
 subordinate: false
+requires:
+  nats:
+    interface: nats
