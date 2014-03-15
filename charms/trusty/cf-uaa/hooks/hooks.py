@@ -8,7 +8,7 @@ import sys
 import subprocess
 # from subprocess import call
 import glob
-#import shutil
+import shutil
 import cPickle as pickle
 
 from charmhelpers.core import hookenv, host
@@ -74,7 +74,7 @@ def install():
     os.system('sudo -u vcap -g vcap mkdir -p {}'.format(tompcat_varz_folder))
     os.system('sudo -u vcap -g vcap mkdir -p /var/vcap/jobs/uaa')
     os.system('sudo -u vcap -g vcap ln -s {} /var/vcap/jobs/uaa/config'.format(CONFIG_DIR))
-    os.copy(VARZ_CONFIG_FILE, tompcat_varz_folder)
+    os.system('sudo -u vcap -g vcap cp ' + VARZ_CONFIG_FILE + ' ' + tompcat_varz_folder)
     os.system('sudo -u vcap -g vcap export UAA_CONFIG_PATH={}'.format(CONFIG_DIR))
 
 
