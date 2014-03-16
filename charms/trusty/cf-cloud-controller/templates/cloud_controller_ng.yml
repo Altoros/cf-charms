@@ -10,11 +10,11 @@ message_bus_servers:
 
 
 external_domain:
-  - {{ external_domain }}
+  - api.{{ system_domain }}.xip.io
 
 system_domain_organization: {{ system_domain_organization }}
-system_domain: {{ system_domain }}
-app_domains: [ example.net ]
+system_domain: {{ system_domain }}.xip.io
+app_domains: [ {{ system_domain }}.xip.io ]
 default_app_memory: 1024
 
 cc_partition: default
