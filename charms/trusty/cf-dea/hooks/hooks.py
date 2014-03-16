@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #!/usr/bin/env python
 # vim: et ai ts=4 sw=4:
 
@@ -158,8 +159,7 @@ def start():
 @hooks.hook("config-changed")
 def config_changed():
     #port_config_changed('router_port')
-    emit_deaconf()
-    if host.service_running('cf-dea'):
+        if emit_deaconf() and host.service_running('cf-dea'):
         #TODO replace with config reload
         host.service_restart('cf-dea')
 

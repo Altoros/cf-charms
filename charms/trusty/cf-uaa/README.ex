@@ -1,5 +1,3 @@
-This charm install CloudFoundry User Account and Authentication (UAA) Server
-https://github.com/cloudfoundry/uaa
 
 Overview
 --------
@@ -38,4 +36,3 @@ Report bugs at: http://bugs.launchpad.net/charms/+source/charmname
 Location: http://jujucharms.com/charms/distro/charmname
 
 * Be sure to remove the templated parts before submitting to https://launchpad.net/charms for inclusion in the charm store.
-

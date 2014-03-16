@@ -1,4 +1,4 @@
-name: uaa
+name: cf-uaa
 summary: CloudFoundry User Account and Authentication (UAA) Server
 maintainer: Altoros <email here>
 description: |
@@ -7,14 +7,8 @@ description: |
   It can also authenticate users with their Cloud Foundry credentials, and can act as an SSO service using those credentials (or others).
   It has endpoints for managing user accounts and for registering OAuth2 clients, as well as various other management functions.
 categories:
-  - PaaS
+  - misc
 subordinate: false
-#provides:
-#  provides-relation:
-#    interface: interface-name
-#requires:
-#  requires-relation:
-#    interface: interface-name
-#peers:
-#  peer-relation:
-#    interface: interface-name
+requires:
+  nats:
+    interface: nats

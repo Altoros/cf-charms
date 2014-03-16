@@ -1,0 +1,33 @@
+---
+
+
+
+
+
+
+
+
+name: batch
+
+database:
+  #url: jdbc:://:/uaadb
+  url: jdbc:sqlite::memory:
+  username: uaaadmin
+  password: c1oudc0w
+
+spring_profiles: 
+
+cloud_controller:
+  database:
+    url: jdbc:sqlite::memory:
+    username: ccadmin
+    password: "password"
+
+logging:
+  config: /var/lib/cloudfoundry/cfuaa/jobs/config/batch.log4j.properties
+
+
+batch:
+  username: batchuser
+  password: c1oudc0w
+

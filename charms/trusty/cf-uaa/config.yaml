@@ -1,14 +1,31 @@
 options:
-  string-option:
+  varz_user:
     type: string
-    default: "Default Value"
-    description: "A short description of the configuration option"
-  boolean-option:
-    type: boolean
-    default: False
-    description: "A short description of the configuration option"
-  int-option:
-    type: int
-    default: 9001
-    description: "A short description of the configuration option"
-
+    default: 'admin'
+    description: 'TBD'
+  varz_password:
+    type: string
+    default: 'password'
+    description: 'TBD'
+  source:
+    type: string
+    default: 'ppa:cf-charm/ppa'
+    description: |
+      Optional configuration to support use of additional sources such as:
+      .
+        - ppa:myteam/ppa
+        - cloud:precise-proposed/folsom
+        - http://my.archive.com/ubuntu main
+      .
+      The last option should be used in conjunction with the key configuration
+      option.
+      .
+      Note that a minimum ceph version of 0.48.2 is required for use with this
+      charm which is NOT provided by the packages in the main Ubuntu archive
+      for precise but is provided in the Folsom cloud archive.
+  key:
+    type: string
+    default: '4C430C3C2828E07D'
+    description: |
+      Key ID to import to the apt keyring to support use with arbitary source
+      configuration from outside of Launchpad archives or PPA's.
