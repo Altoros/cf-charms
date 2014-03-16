@@ -3,10 +3,10 @@
 
 nats:
 
-  - host: {{ nats_ip }}
+  - host: {{ nats_address }}
     port: {{ nats_port }}
-    user: admin
-    pass: "password"
+    user: {{ nats_user }}
+    pass: "{{ nats_password }}"
 
 
 logging:
