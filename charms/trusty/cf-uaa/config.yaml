@@ -1,4 +1,12 @@
 options:
+  varz_user:
+    type: string
+    default: 'admin'
+    description: 'TBD'
+  varz_password:
+    type: string
+    default: 'password'
+    description: 'TBD'
   source:
     type: string
     default: 'ppa:cf-charm/ppa'

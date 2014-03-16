@@ -52,7 +52,7 @@ def chownr(path, owner, group):
 
 def install_upstart_scripts():
     for x in glob.glob('files/upstart/*.conf'):
-        print 'Installing upstart job:', x
+        log('Installing upstart job:' + x, DEBUG)
         shutil.copy(x, '/etc/init/')
 
 
@@ -223,10 +223,7 @@ def install():
     install_upstart_scripts()
     run(['update-rc.d', '-f', 'nginx', 'remove'])
     #reconfigure NGINX as upstart job and use specific config file
-    run(['/etc/init.d/nginx', 'stop'])
-    while host.service_running('nginx'):
-        log("nginx still running")
-        time.sleep(60)
+    host.service_stop('nginx')
     os.remove('/etc/init.d/nginx')
 
 
