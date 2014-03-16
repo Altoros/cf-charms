@@ -156,6 +156,8 @@ def install():
     os.chdir(CF_DIR)
     os.environ['GOPATH'] = CF_DIR
     os.environ["PATH"] = CF_DIR + os.pathsep + os.environ["PATH"]
+    #ToDo: git clone is nor idempotent. If repo dir exists it exits with error
+    #fix it by deleting 'src' directory before. This won't allow to redeploy to an existing machine
     os.chdir(CF_DIR + '/src/github.com/cloudfoundry')
     run(['git', 'clone', 'https://github.com/cloudfoundry/gorouter.git'])
     os.chdir(CF_DIR + '/src/github.com/stretchr/')
@@ -216,6 +218,7 @@ def nats_relation_changed():
         local_state['nats_password'] = hookenv.relation_get('nats_password')
         local_state.save()
     if emit_routerconf():
+        stop()
         start()
 
 
