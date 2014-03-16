@@ -177,7 +177,8 @@ def config_changed():
     local_state['varz_password'] = config_data['varz_password']
     if emit_uaaconf() and emit_varz() and host.service_running('cf-uaa'):
         #TODO replace with config reload
-        host.service_restart('cf-uaa')
+        #host.service_restart('cf-uaa')
+        pass
 
 
 @hooks.hook()
@@ -186,7 +187,7 @@ def start():
         if not host.service_running('cf-uaa'):
             #hookenv.open_port(local_state['router_port'])
             log("Starting UAA as upstart job")
-            host.service_start('cf-uaa')
+            #host.service_start('cf-uaa')
 
 
 @hooks.hook()
