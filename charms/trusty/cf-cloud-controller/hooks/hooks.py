@@ -14,7 +14,7 @@ import cPickle as pickle
 from charmhelpers.core import hookenv, host
 from charmhelpers.payload.execd import execd_preinstall
 
-from charmhelpers.core.hookenv import log
+from charmhelpers.core.hookenv import log, DEBUG, ERROR, WARNING
 from charmhelpers.fetch import (
     apt_install, apt_update, add_source
 )
@@ -59,7 +59,7 @@ def install_upstart_scripts():
 def run(command, exit_on_error=True, quiet=False):
     '''Run a command and return the output.'''
     if not quiet:
-        log("Running {!r}".format(command), hookenv.DEBUG)
+        log("Running {!r}".format(command), DEBUG)
     p = subprocess.Popen(
         command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
         shell=isinstance(command, basestring))
@@ -141,17 +141,21 @@ def emit_cc_conf():
     cc_context.setdefault('system_domain_organization',
                           config_data['system_domain_organization'])
     cc_context.setdefault('cc_ip', hookenv.unit_private_ip())
-    if config_data['external_domain']:
-        cc_context.setdefault('external_domain',
-                              config_data['external_domain'])
+    #if config_data['external_domain']:
+    #    cc_context.setdefault('external_domain',
+    #                          config_data['external_domain'])
+    #else:
+    #    cc_context.setdefault('external_domain', 'localhost')
+    if 'system_domain' in local_state:
+        cc_context['system_domain'] = hookenv.unit_private_ip()
     else:
-        cc_context.setdefault('external_domain', 'localhost')
-    if config_data['system_domain']:
-        cc_context.setdefault('system_domain',
-                              config_data['system_domain'])
-    else:
-        log('No system_domain')
-        return False
+        cc_context.setdefault('system_domain', hookenv.unit_private_ip())
+    #if config_data['system_domain']:
+    #    cc_context.setdefault('system_domain',
+    #                          config_data['system_domain'])
+    #else:
+    #    log('No system_domain')
+    #    return False
     if config_data['cc_port']:
         cc_context.setdefault('cc_port', config_data['cc_port'])
     else:
@@ -196,8 +200,9 @@ def port_config_changed(port):
 
 
 def cc_db_migrate():
-    log("Starting db:migrate...")
+    log("Starting db:migrate...", DEBUG)
     os.chdir(CC_DIR)
+    #ToDo: make it idempotent by deleting existing db if exists
     run(['sudo', '-u', 'vcap', '-g', 'vcap',
         'CLOUD_CONTROLLER_NG_CONFIG={}'.format(CC_CONFIG_FILE),
         'bundle', 'exec', 'rake', 'db:migrate'])
@@ -224,7 +229,11 @@ def install():
     run(['update-rc.d', '-f', 'nginx', 'remove'])
     #reconfigure NGINX as upstart job and use specific config file
     host.service_stop('nginx')
-    os.remove('/etc/init.d/nginx')
+    try:
+        os.remove('/etc/init.d/nginx')
+    except OSError:
+        pass
+
 
 
 @hooks.hook("config-changed")
