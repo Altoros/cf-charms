@@ -3,14 +3,6 @@ options:
     type: int
     default: 80
     description: 'Port nunmber that will be used to run router.'
-  nats_address:
-    type: string
-    default: '10.0.3.137'
-    description: 'Address to access NATS queueing messaging system.'
-  nats_port:
-    type: int
-    default: 4022
-    description: 'Port to access NATS queueing messaging system.'
   source:
     type: string
     default: 'ppa:cf-charm/ppa'
