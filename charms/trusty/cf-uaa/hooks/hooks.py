@@ -83,7 +83,11 @@ class State(dict):
         '''Store state to local disk.'''
         state = {}
         state.update(self)
-        pickle.dump(state, open(self._state_file, 'wb'))
+        pickle.dump(state, open(self._state_file, 'wb')) 
+
+    def update(self, key, value):
+        self[key] = value
+        self.save()
 
 
 def install_upstart_scripts():
@@ -104,6 +108,32 @@ def port_config_changed(port):
     hookenv.open_port(config_data[port])
 
 
+def emit_registrar_config(): 
+    registrar_context = {}
+    success = True
+    required_registrar_config_items = [ 'nats_user', 'nats_password', 'nats_address', 
+                                        'nats_port', 'varz_user', 'varz_password' ]
+
+    for registrar_config_item in required_registrar_config_items:
+        if registrar_config_item in local_state:
+            registrar_context[registrar_config_item] = local_state[registrar_config_item]
+        else:
+            success = False
+    
+    if success:
+        log('Emited registrar config successfull.')
+        with open(REGISTRAR_CONFIG_FILE, 'w') as varzconf:
+            varzconf.write(render_template('registrar.yml', registrar_context))
+        local_state.update('registrar_ok', 'true')
+        return True
+    else:
+        if 'varz_ok' in local_state:
+            del local_state['registrar_ok']
+            local_state.save()
+        log('Emit varz conf unsuccessfull', WARNING)
+        return False
+
+
 def emit_varz():
     varzcontext = {}
     success = True
@@ -120,6 +150,7 @@ def emit_varz():
         with open(VARZ_CONFIG_FILE, 'w') as varzconf:
             varzconf.write(render_template('varz.yml', varzcontext))
         local_state['varz_ok'] = 'true'
+        local_state.save()
         return True
     else:
         if 'varz_ok' in local_state:
@@ -232,6 +263,7 @@ LOG_DIR = '/var/vcap/sys/log/uaa'
 CONFIG_PATH = os.path.join(CF_DIR, 'cfuaa', 'jobs', 'config')
 UAA_CONFIG_FILE = os.path.join(CONFIG_PATH, 'uaa.yml')
 VARZ_CONFIG_FILE = os.path.join(CONFIG_PATH, 'varz.yml')
+REGISTRAR_CONFIG_FILE = os.path.join(CF_DIR, 'cfregistrar', 'config', 'config.yml')
 TOMCAT_HOME = '/var/lib/cloudfoundry/cfuaa/tomcat'
 SQLITE_JDBC_LIBRARY = 'sqlite-jdbc-3.7.2.jar'
 config_data = hookenv.config()

@@ -1,0 +1,19 @@
+---
+logging:
+  file: /var/log/cloudfoundry/uaa/cf-registrar.log
+  level: info
+
+message_bus_servers:
+
+  - nats: nats://{{ nats_user }}:{{ nats_password }}@{{ nats_address }}:{{ nats_port }}
+
+
+uri:
+  - uaa.example.net
+host: 127.0.0.1
+index: 1
+port: 8080
+tags:
+  component: uaa
+varz:
+  file: /var/lib/cloudfoundry/cfuaa/jobs/config/varz.yml
