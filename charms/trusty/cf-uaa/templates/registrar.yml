@@ -1,19 +1,21 @@
 ---
 logging:
-  file: /var/log/cloudfoundry/uaa/cf-registrar.log
-  level: info
+  # file: /var/log/cloudfoundry/cfuaa/cf-registrar.log
+  level: all
 
 message_bus_servers:
-
   - nats: nats://{{ nats_user }}:{{ nats_password }}@{{ nats_address }}:{{ nats_port }}
 
+uri: test.vcap.me # Q: what does this url means ? is it namespace for nats messages ?
 
-uri:
-  - uaa.example.net
 host: 127.0.0.1
 index: 1
-port: 8080
+port: 8282  # Q: what port is it ? can I use any port here ? 
 tags:
   component: uaa
 varz:
-  file: /var/lib/cloudfoundry/cfuaa/jobs/config/varz.yml
+  type: new_component
+  username: {{ varz_user }}
+  password: {{ varz_password }}
+
+

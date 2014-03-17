@@ -83,11 +83,7 @@ class State(dict):
         '''Store state to local disk.'''
         state = {}
         state.update(self)
-        pickle.dump(state, open(self._state_file, 'wb')) 
-
-    def update(self, key, value):
-        self[key] = value
-        self.save()
+        pickle.dump(state, open(self._state_file, 'wb'))
 
 
 def install_upstart_scripts():
@@ -108,23 +104,27 @@ def port_config_changed(port):
     hookenv.open_port(config_data[port])
 
 
-def emit_registrar_config(): 
+def emit_registrar_config():
     registrar_context = {}
     success = True
-    required_registrar_config_items = [ 'nats_user', 'nats_password', 'nats_address', 
-                                        'nats_port', 'varz_user', 'varz_password' ]
+    required_registrar_config_items = ['nats_user', 'nats_password',
+                                       'nats_address', 'nats_port',
+                                       'varz_user', 'varz_password']
 
-    for registrar_config_item in required_registrar_config_items:
-        if registrar_config_item in local_state:
-            registrar_context[registrar_config_item] = local_state[registrar_config_item]
+    # we can do something like
+    # local_state.contains(required_registrar_config_items)
+    for key in required_registrar_config_items:
+        if key in local_state:
+            registrar_context[key] = local_state[key]
         else:
             success = False
-    
+
     if success:
-        log('Emited registrar config successfull.')
+        log('Emited registrar config successfully.')
         with open(REGISTRAR_CONFIG_FILE, 'w') as varzconf:
             varzconf.write(render_template('registrar.yml', registrar_context))
-        local_state.update('registrar_ok', 'true')
+        local_state['registrar_ok'] = 'true'
+        local_state.save
         return True
     else:
         if 'varz_ok' in local_state:
@@ -219,7 +219,8 @@ def config_changed():
     local_state['varz_user'] = config_data['varz_user']
     local_state['varz_password'] = config_data['varz_password']
     local_state['uaa_address'] = hookenv.unit_private_ip()
-    if emit_uaaconf() and emit_varz() and host.service_running('cf-uaa'):
+    if emit_uaaconf() and emit_varz() and \
+       emit_registrar_config() and host.service_running('cf-uaa'):
         #TODO replace with config reload
         #host.service_restart('cf-uaa')
         pass
@@ -227,11 +228,13 @@ def config_changed():
 
 @hooks.hook()
 def start():
-    if ('varz_ok' in local_state) and ('uaa_ok' in local_state):
+    if ('varz_ok' in local_state) and ('registrar_ok' in local_state) and \
+       ('uaa_ok' in local_state):
         if not host.service_running('cf-uaa'):
             #hookenv.open_port(local_state['router_port'])
             log("Starting UAA as upstart job")
-            #host.service_start('cf-uaa')
+            host.service_start('cf-uaa')
+            host.service_start('cf-registrar')
 
 
 @hooks.hook()
@@ -263,7 +266,8 @@ LOG_DIR = '/var/vcap/sys/log/uaa'
 CONFIG_PATH = os.path.join(CF_DIR, 'cfuaa', 'jobs', 'config')
 UAA_CONFIG_FILE = os.path.join(CONFIG_PATH, 'uaa.yml')
 VARZ_CONFIG_FILE = os.path.join(CONFIG_PATH, 'varz.yml')
-REGISTRAR_CONFIG_FILE = os.path.join(CF_DIR, 'cfregistrar', 'config', 'config.yml')
+REGISTRAR_CONFIG_FILE = os.path.join(CF_DIR, 'cfregistrar',
+                                             'config', 'config.yml')
 TOMCAT_HOME = '/var/lib/cloudfoundry/cfuaa/tomcat'
 SQLITE_JDBC_LIBRARY = 'sqlite-jdbc-3.7.2.jar'
 config_data = hookenv.config()
