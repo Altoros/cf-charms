@@ -2,11 +2,11 @@ options:
   varz_user:
     type: string
     default: 'admin'
-    description: 'TBD'
+    description: 'User name to access varz end point.'
   varz_password:
     type: string
     default: 'password'
-    description: 'TBD'
+    description: 'Password to access varz end point.'
   source:
     type: string
     default: 'ppa:cf-charm/ppa'
