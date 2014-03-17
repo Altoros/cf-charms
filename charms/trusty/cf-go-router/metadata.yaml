@@ -7,7 +7,9 @@ description: |
     node. The router is implemented in Go.
 categories:
   - misc
-subordinate: false
+provides:
+  router:
+    interface: router
 requires:
   nats:
     interface: nats

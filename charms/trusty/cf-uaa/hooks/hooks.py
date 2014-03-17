@@ -197,6 +197,24 @@ def stop():
     #     hookenv.close_port(local_state['uaa_port'])
 
 
+@hooks.hook('uaa-relation-changed')
+def uaa_relation_changed():
+    for relid in hookenv.relation_ids('uaa'):
+        #log('NATS address:' + local_state['nats_address'] + ':'
+        #    + str(local_state['nats_port']), DEBUG)
+        #log('NATS user:' + local_state['nats_user'] + ':'
+        #    + str(local_state['nats_password']), DEBUG)
+        #hookenv.relation_set(relid,
+        #                     uaa_address=local_state['uaa_address'],
+        #                     )
+        pass
+
+
+@hooks.hook('uaa-relation-joined')
+def uaa_relation_joined():
+    pass
+
+
 #################### Global variables ####################
 PACKAGES = ['cfuaa', 'cfuaajob', 'cfregistrar']
 CF_DIR = '/var/lib/cloudfoundry'

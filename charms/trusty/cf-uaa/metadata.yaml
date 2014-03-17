@@ -8,7 +8,9 @@ description: |
   It has endpoints for managing user accounts and for registering OAuth2 clients, as well as various other management functions.
 categories:
   - misc
-subordinate: false
+provides:
+  uaa:
+    interface: uaa
 requires:
   nats:
     interface: nats

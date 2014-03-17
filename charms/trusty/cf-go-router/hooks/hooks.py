@@ -232,6 +232,25 @@ def nats_relation_departed():
     pass
 
 
+@hooks.hook('router-relation-changed')
+def router_relation_changed():
+    for relid in hookenv.relation_ids('router'):
+        #log('NATS address:' + local_state['nats_address'] + ':'
+        #    + str(local_state['nats_port']), DEBUG)
+        #log('NATS user:' + local_state['nats_user'] + ':'
+        #    + str(local_state['nats_password']), DEBUG)
+        #hookenv.relation_set(relid,
+        #                     uaa_address=local_state['uaa_address'],
+        #                     )
+        pass
+
+
+@hooks.hook('router-relation-joined')
+def router_relation_joined():
+    pass
+
+
+############################### Global variables ############
 ROUTER_PATH = '/var/lib/cloudfoundry/cfgorouter'
 CF_DIR = '/var/lib/cloudfoundry'
 local_state = State('local_state.pickle')

@@ -5,7 +5,7 @@ test: lint
 
 lint:
 	@echo "Lint check (flake8)"
-	@flake8 hooks tests
+	@flake8 --exclude=hooks/charmhelpers hooks
 clean:
 	find . -name '*.pyc' -delete
 	find . -name '*.bak' -delete

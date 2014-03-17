@@ -3,7 +3,6 @@
 
 import os
 import sys
-import time
 import subprocess
 import glob
 import shutil
@@ -14,7 +13,7 @@ import cPickle as pickle
 from charmhelpers.core import hookenv, host
 from charmhelpers.payload.execd import execd_preinstall
 
-from charmhelpers.core.hookenv import log, DEBUG, ERROR, WARNING
+from charmhelpers.core.hookenv import log, DEBUG
 from charmhelpers.fetch import (
     apt_install, apt_update, add_source
 )
@@ -235,7 +234,6 @@ def install():
         pass
 
 
-
 @hooks.hook("config-changed")
 def config_changed():
     port_config_changed('nginx_port')
@@ -296,6 +294,57 @@ def nats_relation_broken():
 @hooks.hook('nats-relation-departed')
 def nats_relation_departed():
     pass
+
+
+####################### UAA relation hooks #####################
+
+
+@hooks.hook('uaa-relation-changed')
+def uaa_relation_changed():
+    #for relid in hookenv.relation_ids('uaa'):
+    #    local_state['uaa_address'] = hookenv.relation_get('uaa_address'))
+    #if emit_cc_conf():
+    #    if not 'ccdbmigrated' in local_state:
+    #        cc_db_migrate()
+    #    start()
+    pass
+
+
+@hooks.hook('uaa-relation-broken')
+def uaa_relation_broken():
+    pass
+    #stop()
+
+
+@hooks.hook('uaa-relation-departed')
+def uaa_relation_departed():
+    pass
+
+
+####################### router relation hooks #####################
+
+
+@hooks.hook('router-relation-changed')
+def router_relation_changed():
+    #for relid in hookenv.relation_ids('router'):
+    #    local_state['router_address'] = hookenv.relation_get('router_address')
+    #if emit_cc_conf():
+    #    if not 'ccdbmigrated' in local_state:
+    #        cc_db_migrate()
+    #    start()
+    pass
+
+
+@hooks.hook('router-relation-broken')
+def router_relation_broken():
+    pass
+    #stop()
+
+
+@hooks.hook('router-relation-departed')
+def router_relation_departed():
+    pass
+
 
 config_data = hookenv.config()
 hook_name = os.path.basename(sys.argv[0])
