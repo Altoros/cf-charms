@@ -110,9 +110,12 @@ def emit_cc_conf():
         if item in local_state:
             cc_context[item] = local_state[item]
         else:
+            log(('#emit_cc_conf: missing %s item.' % item), ERROR)
             local_state['config_ok'] = False
+            local_state.save()
             return False
     local_state['config_ok'] = True
+    local_state.save()
     os.chdir(hookenv.charm_dir())
     with open(CC_CONFIG_FILE, 'w') as cc_conf:
         cc_conf.write(render_template('cloud_controller_ng.yml', cc_context))
@@ -180,6 +183,8 @@ def install():
 
 @hooks.hook("config-changed")
 def config_changed():
+    local_state['config_ok'] = False
+    local_state.save()
     port_config_changed('nginx_port')
     emit_nginx_conf()
     if host.service_running('cf-nginx'):
@@ -191,7 +196,7 @@ def config_changed():
 
 @hooks.hook()
 def start():
-    if local_state['config_ok']:
+    if local_state['config_ok'] :
         if not local_state['ccdbmigrated']:
             cc_db_migrate()
         else:
