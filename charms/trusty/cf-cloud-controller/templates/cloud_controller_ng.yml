@@ -1,5 +1,5 @@
 ---
-local_route: {{ cc_ip }}
+local_route: {{ cc_ip }}.xip.io
 port: {{ cc_port }} # external CC port
 pid_filename: /var/vcap/sys/run/cloud_controller_ng/cloud_controller_ng.pid
 development_mode: false
@@ -15,6 +15,8 @@ external_domain:
 system_domain_organization: {{ system_domain_organization }}
 system_domain: {{ system_domain }}.xip.io
 app_domains: [ {{ system_domain }}.xip.io ]
+srv_api_uri: http://api.{{ system_domain }}.xip.io
+
 default_app_memory: 1024
 
 cc_partition: default
