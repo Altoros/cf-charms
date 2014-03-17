@@ -114,13 +114,20 @@ def emit_all_configs():
     emit_registrar_config() and emit_varz_config() and emit_uaa_config()
 
 
+def find_config_parameter(key):
+    value = hookenv.relation_get(key)
+    if value is None and key in config_data:
+        value = config_data[key]
+    value
+
+
 def emit_config(module_name, config_items,
                 template_config_file, target_config_file):
     config_context = {}
     success = True
 
     for key in config_items:
-        if key in local_state:
+        if local_state[key] is not None:
             config_context[key] = local_state[key]
         else:
             success = False
@@ -199,13 +206,13 @@ def config_changed():
     local_state['varz_ok'] = False
     local_state['registrar_ok'] = False
     local_state['uaa_ok'] = False
-    local_state.save()
     #port_config_changed('uaa_port')
     config_items = ['nats_user', 'nats_password', 'nats_port',
                     'nats_address', 'varz_user', 'varz_password']
-    for item in config_items:
-        if item in config_data:
-            local_state[item] = config_data[item]
+    for key in config_items:
+        local_state[key] = find_config_parameter(key)
+
+    local_state.save()
 
     if emit_all_configs():
         stop()
