@@ -92,6 +92,18 @@ def install_upstart_scripts():
         shutil.copy(x, '/etc/init/')
 
 
+def port_config_changed(port):
+    '''Cheks if value of port changed close old port and open a new one'''
+    if port in local_state:
+        if local_state[port] != config_data[port]:
+            hookenv.close_port(local_state[port])
+            local_state[port] = config_data[port]
+    else:
+        local_state.setdefault(port, config_data[port])
+    local_state.save()
+    hookenv.open_port(config_data[port])
+
+
 def emit_varz():
     varzcontext = {}
     success = True
@@ -175,6 +187,7 @@ def config_changed():
     #port_config_changed('uaa_port')
     local_state['varz_user'] = config_data['varz_user']
     local_state['varz_password'] = config_data['varz_password']
+    local_state['uaa_address'] = hookenv.unit_private_ip()
     if emit_uaaconf() and emit_varz() and host.service_running('cf-uaa'):
         #TODO replace with config reload
         #host.service_restart('cf-uaa')
@@ -200,14 +213,10 @@ def stop():
 @hooks.hook('uaa-relation-changed')
 def uaa_relation_changed():
     for relid in hookenv.relation_ids('uaa'):
-        #log('NATS address:' + local_state['nats_address'] + ':'
-        #    + str(local_state['nats_port']), DEBUG)
-        #log('NATS user:' + local_state['nats_user'] + ':'
-        #    + str(local_state['nats_password']), DEBUG)
-        #hookenv.relation_set(relid,
-        #                     uaa_address=local_state['uaa_address'],
-        #                     )
-        pass
+        log('uaa data to send:' + local_state['uaa_address'], DEBUG)
+        hookenv.relation_set(relid,
+                             uaa_address=local_state['uaa_address'],
+                             )
 
 
 @hooks.hook('uaa-relation-joined')

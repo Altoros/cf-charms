@@ -21,7 +21,7 @@ default_app_memory: 1024
 
 cc_partition: default
 
-bootstrap_admin_email: admin@example.com
+bootstrap_admin_email: admin@{{ system_domain_organization }}
 
 bulk_api:
   auth_user: bulk_api
@@ -67,12 +67,12 @@ db: &db
 
 
 login:
-  url: https://login.example.net
+  url: http://{{ uaa_address }}:8080
 
 uaa:
-  url: https://uaa.example.net
+  url: http://{{ uaa_address }}:8080
   resource_id: cloud_controller
-
+  symmetric_secret: cc-secret
   verification_key: |
 
 

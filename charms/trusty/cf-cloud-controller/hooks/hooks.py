@@ -18,25 +18,8 @@ from charmhelpers.fetch import (
     apt_install, apt_update, add_source
 )
 from utils import render_template
+
 hooks = hookenv.Hooks()
-
-CC_PACKAGES = ['cfcloudcontroller', 'cfcloudcontrollerjob']
-
-CF_DIR = '/var/lib/cloudfoundry'
-CC_DIR = '{}/cfcloudcontroller'.format(CF_DIR)
-CC_CONFIG_DIR = '{}/jobs/config'.format(CC_DIR)
-CC_CONFIG_FILE = '{}/cloud_controller_ng.yml'.format(CC_CONFIG_DIR)
-CC_DB_FILE = '{}/db/cc.db'.format(CC_DIR)
-CC_JOB_FILE = '/etc/init/cf-cloudcontroller.conf'
-CC_LOG_DIR = '/var/vcap/sys/log/cloud_controller_ng'
-CC_RUN_DIR = '/var/vcap/sys/run/cloud_controller_ng'
-
-NGINX_JOB_FILE = '/etc/init/cf-nginx.conf'
-NGINX_CONFIG_FILE = '{}/nginx.conf'.format(CC_CONFIG_DIR)
-NGINX_RUN_DIR = '/var/vcap/sys/run/nginx_ccng'
-NGINX_LOG_DIR = '/var/vcap/sys/log/nginx_ccng'
-
-FOG_CONNECTION = '/var/vcap/nfs/store'
 
 
 def chownr(path, owner, group):
@@ -112,68 +95,27 @@ class State(dict):
         pickle.dump(state, open(self._state_file, 'wb'))
 
 
-#TODO move to class
-def alter_state_value(name, value):
-    log('State\'s value altered:' + name + '->' + str(value))
-    if name in local_state:
-        local_state[name] = value
-    else:
-        local_state.setdefault(name, value)
-    local_state.save()
-
-
-def set_cc_conf_state(state):
-    alter_state_value('cc_conf', state)
-
-
 def emit_cc_conf():
     cc_context = {}
-    cc_context.setdefault('domain', config_data['domain'])
-    if 'nats_user' in local_state:
-        cc_context.setdefault('nats_user', local_state['nats_user'])
-    else:
-        return False
-    if 'nats_password' in local_state:
-        cc_context.setdefault('nats_password', local_state['nats_password'])
-    else:
-        return False
-    cc_context.setdefault('system_domain_organization',
-                          config_data['system_domain_organization'])
-    cc_context.setdefault('cc_ip', hookenv.unit_private_ip())
-    #if config_data['external_domain']:
-    #    cc_context.setdefault('external_domain',
-    #                          config_data['external_domain'])
-    #else:
-    #    cc_context.setdefault('external_domain', 'localhost')
-    if 'system_domain' in local_state:
-        cc_context['system_domain'] = hookenv.unit_private_ip()
-    else:
-        cc_context.setdefault('system_domain', hookenv.unit_private_ip())
-    #if config_data['system_domain']:
-    #    cc_context.setdefault('system_domain',
-    #                          config_data['system_domain'])
-    #else:
-    #    log('No system_domain')
-    #    return False
-    if config_data['cc_port']:
-        cc_context.setdefault('cc_port', config_data['cc_port'])
-    else:
-        set_cc_conf_state('')
-        return False
-    if 'nats_port' in local_state:
-        cc_context.setdefault('nats_port', local_state['nats_port'])
-    else:
-        set_cc_conf_state('')
-        return False
-    if 'nats_address' in local_state:
-        cc_context.setdefault('nats_address', local_state['nats_address'])
-    else:
-        set_cc_conf_state('')
-        return False
+    cc_context['domain'] = config_data['domain']
+    cc_context['cc_ip'] = hookenv.unit_private_ip()
+    cc_context['system_domain_organization'] = \
+        config_data['system_domain_organization']
+    params = (
+        'nats_address', 'nats_port', 'nats_user', 'nats_password',
+        'external_domain', 'system_domain',
+        'uaa_address',
+    )
+    for item in params:
+        if item in local_state:
+            cc_context[item] = local_state[item]
+        else:
+            local_state['config_ok'] = False
+            return False
+    local_state['config_ok'] = True
     os.chdir(hookenv.charm_dir())
     with open(CC_CONFIG_FILE, 'w') as cc_conf:
         cc_conf.write(render_template('cloud_controller_ng.yml', cc_context))
-    set_cc_conf_state('ok')
     return True
 
 
@@ -201,11 +143,11 @@ def port_config_changed(port):
 def cc_db_migrate():
     log("Starting db:migrate...", DEBUG)
     os.chdir(CC_DIR)
-    #ToDo: make it idempotent by deleting existing db if exists
+    #TODO: make it idempotent by deleting existing db if exists
     run(['sudo', '-u', 'vcap', '-g', 'vcap',
         'CLOUD_CONTROLLER_NG_CONFIG={}'.format(CC_CONFIG_FILE),
         'bundle', 'exec', 'rake', 'db:migrate'])
-    alter_state_value('ccdbmigrated', 'true')
+    local_state['ccdbmigrated'] = True
 
 
 @hooks.hook()
@@ -225,8 +167,10 @@ def install():
     chownr('/var/vcap', owner='vcap', group='vcap')
     chownr(CF_DIR, owner='vcap', group='vcap')
     install_upstart_scripts()
-    run(['update-rc.d', '-f', 'nginx', 'remove'])
+    if not 'ccdbmigrated' in local_state:
+        local_state['ccdbmigrated'] = False
     #reconfigure NGINX as upstart job and use specific config file
+    run(['update-rc.d', '-f', 'nginx', 'remove'])
     host.service_stop('nginx')
     try:
         os.remove('/etc/init.d/nginx')
@@ -247,15 +191,18 @@ def config_changed():
 
 @hooks.hook()
 def start():
-    if ('cc_conf' in local_state) and ('ccdbmigrated' in local_state):
-        if not host.service_running('cf-cloudcontroller'):
-            log("Starting cloud controller as upstart job")
-            host.service_start('cf-cloudcontroller')
-        if (not host.service_running('cf-nginx')) and \
-                host.service_running('cf-cloudcontroller'):
-            log("Starting NGINX")
-            host.service_start('cf-nginx')
-    hookenv.open_port(local_state['nginx_port'])
+    if local_state['config_ok']:
+        if not local_state['ccdbmigrated']:
+            cc_db_migrate()
+        else:
+            if not host.service_running('cf-cloudcontroller'):
+                log("Starting cloud controller as upstart job")
+                host.service_start('cf-cloudcontroller')
+            if (not host.service_running('cf-nginx')) and \
+                    host.service_running('cf-cloudcontroller'):
+                log("Starting NGINX")
+                host.service_start('cf-nginx')
+            hookenv.open_port(local_state['nginx_port'])
 
 
 @hooks.hook()
@@ -275,11 +222,11 @@ def db_relation_changed():
 @hooks.hook('nats-relation-changed')
 def nats_relation_changed():
     for relid in hookenv.relation_ids('nats'):
-        alter_state_value('nats_address', hookenv.relation_get('nats_address'))
-        alter_state_value('nats_port', hookenv.relation_get('nats_port'))
-        alter_state_value('nats_user', hookenv.relation_get('nats_user'))
-        alter_state_value('nats_password',
-                          hookenv.relation_get('nats_password'))
+        local_state['nats_address'] = hookenv.relation_get('nats_address')
+        local_state['nats_port'] = hookenv.relation_get('nats_port')
+        local_state['nats_user'] = hookenv.relation_get('nats_user')
+        local_state['nats_password'] = \
+            hookenv.relation_get('nats_password')
     if emit_cc_conf():
         if not 'ccdbmigrated' in local_state:
             cc_db_migrate()
@@ -301,13 +248,10 @@ def nats_relation_departed():
 
 @hooks.hook('uaa-relation-changed')
 def uaa_relation_changed():
-    #for relid in hookenv.relation_ids('uaa'):
-    #    local_state['uaa_address'] = hookenv.relation_get('uaa_address'))
-    #if emit_cc_conf():
-    #    if not 'ccdbmigrated' in local_state:
-    #        cc_db_migrate()
-    #    start()
-    pass
+    for relid in hookenv.relation_ids('uaa'):
+        local_state['uaa_address'] = hookenv.relation_get('uaa_address')
+    if emit_cc_conf():
+        start()
 
 
 @hooks.hook('uaa-relation-broken')
@@ -345,10 +289,27 @@ def router_relation_broken():
 def router_relation_departed():
     pass
 
-
+################################# Global variables ############################
 config_data = hookenv.config()
 hook_name = os.path.basename(sys.argv[0])
 local_state = State('local_state.pickle')
+CC_PACKAGES = ['cfcloudcontroller', 'cfcloudcontrollerjob']
+
+CF_DIR = '/var/lib/cloudfoundry'
+CC_DIR = '{}/cfcloudcontroller'.format(CF_DIR)
+CC_CONFIG_DIR = '{}/jobs/config'.format(CC_DIR)
+CC_CONFIG_FILE = '{}/cloud_controller_ng.yml'.format(CC_CONFIG_DIR)
+CC_DB_FILE = '{}/db/cc.db'.format(CC_DIR)
+CC_JOB_FILE = '/etc/init/cf-cloudcontroller.conf'
+CC_LOG_DIR = '/var/vcap/sys/log/cloud_controller_ng'
+CC_RUN_DIR = '/var/vcap/sys/run/cloud_controller_ng'
+
+NGINX_JOB_FILE = '/etc/init/cf-nginx.conf'
+NGINX_CONFIG_FILE = '{}/nginx.conf'.format(CC_CONFIG_DIR)
+NGINX_RUN_DIR = '/var/vcap/sys/run/nginx_ccng'
+NGINX_LOG_DIR = '/var/vcap/sys/log/nginx_ccng'
+
+FOG_CONNECTION = '/var/vcap/nfs/store'
 
 if __name__ == '__main__':
     # Hook and context overview. The various replication and client
