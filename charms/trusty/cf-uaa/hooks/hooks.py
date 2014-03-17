@@ -111,8 +111,6 @@ def emit_registrar_config():
                                        'nats_address', 'nats_port',
                                        'varz_user', 'varz_password']
 
-    # we can do something like
-    # local_state.contains(required_registrar_config_items)
     for key in required_registrar_config_items:
         if key in local_state:
             registrar_context[key] = local_state[key]
@@ -123,11 +121,11 @@ def emit_registrar_config():
         log('Emited registrar config successfully.')
         with open(REGISTRAR_CONFIG_FILE, 'w') as varzconf:
             varzconf.write(render_template('registrar.yml', registrar_context))
-        local_state['registrar_ok'] = 'true'
+        local_state['registrar_ok'] = True
         local_state.save
         return True
     else:
-        if 'varz_ok' in local_state:
+        if 'registrar_ok' in local_state:
             del local_state['registrar_ok']
             local_state.save()
         log('Emit varz conf unsuccessfull', WARNING)
@@ -167,7 +165,7 @@ def emit_uaaconf():
         log('Emit uaa conf successfull')
         with open(UAA_CONFIG_FILE, 'w') as uaaconf:
             uaaconf.write(render_template('uaa.yml', uaacontext))
-        local_state['uaa_ok'] = 'true'
+        local_state['uaa_ok'] = True
         return True
     else:
         if 'uaa_ok' in local_state:
@@ -215,10 +213,17 @@ def install():
 
 @hooks.hook("config-changed")
 def config_changed():
+    local_state['varz_ok'] = False
+    local_state['registrar_ok'] = False
+    local_state['uaa_ok'] = False
+    local_state.save()
     #port_config_changed('uaa_port')
-    local_state['varz_user'] = config_data['varz_user']
-    local_state['varz_password'] = config_data['varz_password']
-    local_state['uaa_address'] = hookenv.unit_private_ip()
+    config_items = ['nats_user', 'nats_password', 'nats_port',
+                    'nats_address', 'varz_user', 'varz_password']
+    for item in config_items:
+        if item in config_data:
+            local_state[item] = config_data[item]
+
     if emit_uaaconf() and emit_varz() and \
        emit_registrar_config() and host.service_running('cf-uaa'):
         #TODO replace with config reload
