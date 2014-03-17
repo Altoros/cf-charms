@@ -104,46 +104,65 @@ def port_config_changed(port):
     hookenv.open_port(config_data[port])
 
 
-def emit_varz():
-    varzcontext = {}
-    success = True
-    if 'varz_user' in local_state:
-        varzcontext.setdefault('varz_user', local_state['varz_user'])
-    else:
-        success = False
-    if 'varz_password' in local_state:
-        varzcontext.setdefault('varz_password', local_state['varz_password'])
-    else:
-        success = False
-    if success:
-        log('Emit varz conf successfull')
-        with open(VARZ_CONFIG_FILE, 'w') as varzconf:
-            varzconf.write(render_template('varz.yml', varzcontext))
-        local_state['varz_ok'] = 'true'
-        return True
-    else:
-        if 'varz_ok' in local_state:
-            del local_state['varz_ok']
-            local_state.save()
-        log('Emit varz conf unsuccessfull', WARNING)
-        return False
+def all_configs_are_rendered():
+    local_state['varz_ok'] and \
+        local_state['registrar_ok'] and \
+        local_state['uaa_ok']
 
 
-def emit_uaaconf():
-    uaacontext = {}
+def emit_all_configs():
+    emit_registrar_config() and emit_varz_config() and emit_uaa_config()
+
+
+def find_config_parameter(key):
+    value = hookenv.relation_get(key)
+    if value is None and key in config_data:
+        value = config_data[key]
+    value
+
+
+def emit_config(module_name, config_items,
+                template_config_file, target_config_file):
+    config_context = {}
     success = True
+
+    for key in config_items:
+        if local_state[key] is not None:
+            config_context[key] = local_state[key]
+        else:
+            success = False
+
+    local_state[module_name + '_ok'] = success
+    local_state.save
+
     if success:
-        log('Emit uaa conf successfull')
-        with open(UAA_CONFIG_FILE, 'w') as uaaconf:
-            uaaconf.write(render_template('uaa.yml', uaacontext))
-        local_state['uaa_ok'] = 'true'
-        return True
+        log('Emited %s config successfully.' % module_name)
+        with open(target_config_file, 'w') as config_file:
+            config_file.write(render_template(template_config_file,
+                              config_context))
     else:
-        if 'uaa_ok' in local_state:
-            del local_state['uaa_ok']
-            local_state.save()
-        log('Emit uaa conf unsuccessfull', WARNING)
-        return False
+        log('Emit %s conf unsuccessfull' % module_name, WARNING)
+
+    return success
+
+
+def emit_registrar_config():
+    required_config_items = ['nats_user', 'nats_password', 'nats_address',
+                             'nats_port', 'varz_user', 'varz_password']
+    emit_config('registrar', required_config_items,
+                'registrar.yml', REGISTRAR_CONFIG_FILE)
+
+
+def emit_varz_config():
+    required_config_items = ['varz_password', 'varz_user']
+    emit_config('varz', required_config_items,
+                'varz.yml', VARZ_CONFIG_FILE)
+
+
+def emit_uaa_config():
+    required_config_items = []
+    emit_config('uaa', required_config_items,
+                'uaa.yml', UAA_CONFIG_FILE)
 
 
 @hooks.hook()
@@ -184,44 +203,80 @@ def install():
 
 @hooks.hook("config-changed")
 def config_changed():
+    local_state['varz_ok'] = False
+    local_state['registrar_ok'] = False
+    local_state['uaa_ok'] = False
     #port_config_changed('uaa_port')
-    local_state['varz_user'] = config_data['varz_user']
-    local_state['varz_password'] = config_data['varz_password']
-    local_state['uaa_address'] = hookenv.unit_private_ip()
-    if emit_uaaconf() and emit_varz() and host.service_running('cf-uaa'):
-        #TODO replace with config reload
-        #host.service_restart('cf-uaa')
-        pass
+    config_items = ['nats_user', 'nats_password', 'nats_port',
+                    'nats_address', 'varz_user', 'varz_password']
+    for key in config_items:
+        local_state[key] = find_config_parameter(key)
+
+    local_state.save()
+
+    if emit_all_configs():
+        stop()
+        start()
+        # TODO replace with config reload
+        # host.service_restart('cf-uaa')
+        # host.service_restart('cf-registrar')
 
 
 @hooks.hook()
 def start():
-    if ('varz_ok' in local_state) and ('uaa_ok' in local_state):
+    log("UAA: Start hook is called.")
+    if all_configs_are_rendered():
+        log("UAA: Start hook: all configs are rendered.")
         if not host.service_running('cf-uaa'):
-            #hookenv.open_port(local_state['router_port'])
             log("Starting UAA as upstart job")
-            #host.service_start('cf-uaa')
+            host.service_start('cf-uaa')
+        if not host.service_running('cf-registrar'):
+            log("Starting cf registrar as upstart job")
+            host.service_start('cf-registrar')
+    else:
+        log("UAA: Start hook: NOT all configs are rendered.")
 
 
 @hooks.hook()
 def stop():
     if host.service_running('cf-uaa'):
         host.service_stop('cf-uaa')
+    if host.service_running('cf-registrar'):
+        host.service_stop('cf-registrar')
     #     hookenv.close_port(local_state['uaa_port'])
 
 
-@hooks.hook('uaa-relation-changed')
-def uaa_relation_changed():
-    for relid in hookenv.relation_ids('uaa'):
-        log('uaa data to send:' + local_state['uaa_address'], DEBUG)
-        hookenv.relation_set(relid,
-                             uaa_address=local_state['uaa_address'],
-                             )
+@hooks.hook('nats-relation-changed')
+def nats_relation_changed():
+    log("UAA: nats-relation-changed >>> (attempt to add NATS) ")
+    config_changed()
+
+    # for relid in hookenv.relation_ids('nats'):
+    #     # TODO add checks of values
+    #     # TODO run only if values are changed
+    #     for key in ['nats_address', 'nats_port',
+    #                 'nats_user', 'nats_password']:
+    #         log(("%s = %s" % key, hookenv.relation_get(key)), DEBUG)
+    #         local_state[key] = hookenv.relation_get(key)
+    #     local_state.save()
+    # if emit_all_configs():
+    #     stop()
+    #     start()
+
+
+@hooks.hook('nats-relation-broken')
+def nats_relation_broken():
+    # TODO: determine how to notify user and what to do
+    log("UAA: nats_relation_broken.")
+    config_changed()    # will only stop if someone will be missing
 
 
 @hooks.hook('uaa-relation-joined')
 def uaa_relation_joined():
-    pass
+    log('UAA: uaa-relation-joined', DEBUG)
+    for relid in hookenv.relation_ids('uaa'):
+        log('uaa data to send: ' + local_state['uaa_address'], DEBUG)
+        hookenv.relation_set(relid, uaa_address=local_state['uaa_address'])
 
 
 #################### Global variables ####################
@@ -232,6 +287,8 @@ LOG_DIR = '/var/vcap/sys/log/uaa'
 CONFIG_PATH = os.path.join(CF_DIR, 'cfuaa', 'jobs', 'config')
 UAA_CONFIG_FILE = os.path.join(CONFIG_PATH, 'uaa.yml')
 VARZ_CONFIG_FILE = os.path.join(CONFIG_PATH, 'varz.yml')
+REGISTRAR_CONFIG_FILE = os.path.join(CF_DIR, 'cfregistrar',
+                                             'config', 'config.yml')
 TOMCAT_HOME = '/var/lib/cloudfoundry/cfuaa/tomcat'
 SQLITE_JDBC_LIBRARY = 'sqlite-jdbc-3.7.2.jar'
 config_data = hookenv.config()
