@@ -10,7 +10,7 @@ options:
   external_domain:
     type: string
     default: "api2.vcap.me"
-    description: "tbd"
+    description: "Endpoint that will be used by developers to interact with CF"
   domain: 
     type: string
     default: "example.net"
@@ -21,8 +21,8 @@ options:
     description: "tbd"
   system_domain_organization: 
     type: string
-    default: "example.net"
-    description: "tbd"
+    default: "my-org"
+    description: "Default organization"
   source:
     type: string
     default: 'ppa:cf-charm/ppa'
