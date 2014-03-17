@@ -10,11 +10,11 @@ options:
   domain: 
     type: string
     default: "example.net"
-    description: "tbd"
+    description: "Router domain name. It is used to bind notifications from NATS to the routers."
   system_domain_organization: 
     type: string
     default: "my-org"
-    description: "Default organization"
+    description: "Default organization."
   source:
     type: string
     default: 'ppa:cf-charm/ppa'
