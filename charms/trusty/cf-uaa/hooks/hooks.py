@@ -219,7 +219,8 @@ def config_changed():
     local_state['uaa_ok'] = False
 
     config_items = ['nats_user', 'nats_password', 'nats_port',
-                    'nats_address', 'varz_user', 'varz_password']
+                    'nats_address', 'varz_user', 'varz_password',
+                    'uaa_ip', 'domain']
 
     for key in config_items:
         log(("%s = %s" % (key, find_config_parameter(key))), DEBUG)
