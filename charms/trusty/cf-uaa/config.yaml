@@ -1,4 +1,8 @@
 options:
+  domain: 
+    type: string
+    default: "10.0.3.187.xip.io"
+    description: "Router domain name. Currently we use xip.io service to resolve local IP's."
   varz_user:
     type: string
     default: 'admin'

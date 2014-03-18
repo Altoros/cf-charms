@@ -15,7 +15,7 @@ external_domain:
 system_domain_organization: {{ system_domain_organization }}
 system_domain: {{ system_domain }}.xip.io
 app_domains: [ {{ system_domain }}.xip.io ]
-srv_api_uri: http://api.{{ system_domain }}.xip.io
+srv_api_uri: api.{{ system_domain }}.xip.io
 
 default_app_memory: 1024
 

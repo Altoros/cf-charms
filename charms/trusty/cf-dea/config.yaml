@@ -1,9 +1,9 @@
 options:
-  domain:
+  domain: 
     type: string
-    default: 'example.net'
-    description: |
-      TBD
+    default: "10.0.3.187.xip.io"
+    description: "Router domain name. Currently we use xip.io service to resolve local IP's."
+
   source:
     type: string
     default: 'ppa:cf-charm/ppa'

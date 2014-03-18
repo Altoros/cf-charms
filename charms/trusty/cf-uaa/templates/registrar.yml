@@ -6,11 +6,12 @@ logging:
 message_bus_servers:
   - nats://{{ nats_user }}:{{ nats_password }}@{{ nats_address }}:{{ nats_port }}
 
-uri: test.vcap.me # Q: what does this url means ? is it namespace for nats messages ?
+# domain is set to domain name that is resolved to router ip.
+uri: uaa.{{ domain }}
 
-host: 127.0.0.1
+host: {{ uaa_ip }}   # Q what to use domain or ip ?
 index: 1
-port: 8282  # Q: what port is it ? can I use any port here ? 
+port: 8080  # This is port of tomcat UAA.
 tags:
   component: uaa
 varz:
