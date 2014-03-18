@@ -4,7 +4,7 @@ logging:
   level: all
 
 message_bus_servers:
-  - nats: nats://{{ nats_user }}:{{ nats_password }}@{{ nats_address }}:{{ nats_port }}
+  - nats://{{ nats_user }}:{{ nats_password }}@{{ nats_address }}:{{ nats_port }}
 
 uri: test.vcap.me # Q: what does this url means ? is it namespace for nats messages ?
 

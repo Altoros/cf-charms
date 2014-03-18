@@ -105,28 +105,35 @@ def port_config_changed(port):
 
 
 def all_configs_are_rendered():
-    local_state['varz_ok'] and \
+    return local_state['varz_ok'] and \
         local_state['registrar_ok'] and \
         local_state['uaa_ok']
 
 
 def emit_all_configs():
-    emit_registrar_config() and emit_varz_config() and emit_uaa_config()
+    emit_registrar_config()
+    emit_varz_config()
+    emit_uaa_config())
 
 
 def find_config_parameter(key):
     value = hookenv.relation_get(key)
     if value is None and key in config_data:
         value = config_data[key]
+    log('Try to find parameter: %s = %s' % (key, value))
     return value
 
 
 def emit_config(module_name, config_items,
                 template_config_file, target_config_file):
+    log('try to emit %s config' % module_name)
+
     config_context = {}
     success = True
 
     for key in config_items:
+        log('extract %s from local_state. '
+            '%s = %s' % (key, key, local_state[key]))
         if local_state[key] is not None:
             config_context[key] = local_state[key]
         else:
@@ -137,9 +144,11 @@ def emit_config(module_name, config_items,
 
     if success:
         log('Emited %s config successfully.' % module_name)
+        config_text = render_template(template_config_file, config_context)
+        log("%s config text: " % module_name)
+        log(config_text)
         with open(target_config_file, 'w') as config_file:
-            config_file.write(render_template(template_config_file,
-                              config_context))
+            config_file.write(config_text)
     else:
         log('Emit %s config unsuccessfull' % module_name, WARNING)
 
@@ -216,12 +225,13 @@ def config_changed():
 
     local_state.save()
 
-    if emit_all_configs():
-        stop()
-        start()
-        # TODO replace with config reload
-        # host.service_restart('cf-uaa')
-        # host.service_restart('cf-registrar')
+    emit_all_configs()
+
+    stop()
+    start()
+    # TODO replace with config reload
+    # host.service_restart('cf-uaa')
+    # host.service_restart('cf-registrar')
 
 
 @hooks.hook()
