@@ -102,26 +102,16 @@ def run(command, exit_on_error=True, quiet=False):
 def emit_routerconf():
     routercontext = {}
     success = True
-    if 'nats_user' in local_state:
-        routercontext.setdefault('nats_user', local_state['nats_user'])
-    else:
-        success = False
-    if 'nats_password' in local_state:
-        routercontext.setdefault('nats_password', local_state['nats_password'])
-    else:
-        success = False
-    if 'nats_port' in local_state:
-        routercontext.setdefault('nats_port', local_state['nats_port'])
-    else:
-        success = False
-    if 'nats_address' in local_state:
-        routercontext.setdefault('nats_address', local_state['nats_address'])
-    else:
-        success = False
-    if 'router_port' in local_state:
-        routercontext.setdefault('router_port', local_state['router_port'])
-    else:
-        success = False
+
+    config_items = ['nats_user', 'nats_password', 'nats_port', 'nats_address', 'router_port',
+                    'router_status_port', 'router_status_user', 'router_status_password']
+
+    for item in config_items:
+        if key in local_state:
+            routercontext[key] = local_state[key]
+        else:
+            success = False
+
     if success:
         with open('/var/lib/cloudfoundry/config/gorouter.yml', 'w') as routerconf:
             routerconf.write(render_template('gorouter.yml', routercontext))
