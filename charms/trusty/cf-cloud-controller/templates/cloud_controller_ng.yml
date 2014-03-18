@@ -1,6 +1,6 @@
 ---
 local_route: {{ cc_ip }}.xip.io
-port: {{ cc_port }} # external CC port
+port: 9022 # actually it ignored due to using of nginx
 pid_filename: /var/vcap/sys/run/cloud_controller_ng/cloud_controller_ng.pid
 development_mode: false
 

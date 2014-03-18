@@ -1,4 +1,9 @@
 options:
+  domain:
+    type: string
+    default: 'example.net'
+    description: |
+      TBD
   source:
     type: string
     default: 'ppa:cf-charm/ppa'

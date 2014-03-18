@@ -13,9 +13,9 @@ import cPickle as pickle
 from charmhelpers.core import hookenv, host
 from charmhelpers.payload.execd import execd_preinstall
 
-from charmhelpers.core.hookenv import log, DEBUG
+from charmhelpers.core.hookenv import log, DEBUG, ERROR, WARNING
 from charmhelpers.fetch import (
-    apt_install, apt_update, add_source
+    apt_install, apt_update, add_source, filter_installed_packages
 )
 from utils import render_template
 
@@ -96,23 +96,26 @@ class State(dict):
 
 
 def emit_cc_conf():
+    if 'config_ok' in local_state:
+        del local_state['config_ok']
+    local_state.save()
     cc_context = {}
-    cc_context['domain'] = config_data['domain']
+    #cc_context['domain'] = config_data['domain']
     cc_context['cc_ip'] = hookenv.unit_private_ip()
+    # do we need CC port?
+    cc_context['cc_port'] = config_data['cc_port']
     cc_context['system_domain_organization'] = \
         config_data['system_domain_organization']
     params = (
         'nats_address', 'nats_port', 'nats_user', 'nats_password',
-        'external_domain', 'system_domain',
+        'system_domain',
         'uaa_address',
-    )
+        )
     for item in params:
         if item in local_state:
             cc_context[item] = local_state[item]
         else:
             log(('#emit_cc_conf: missing %s item.' % item), ERROR)
-            local_state['config_ok'] = False
-            local_state.save()
             return False
     local_state['config_ok'] = True
     local_state.save()
@@ -135,22 +138,28 @@ def port_config_changed(port):
     '''Cheks if value of port changed close old port and open a new one'''
     if port in local_state:
         if local_state[port] != config_data[port]:
+            log('Stored value for {} isn\'t equal to config data'.format(port),
+                DEBUG)
+            log('Closing port {}'.format(str(local_state[port])), WARNING)
             hookenv.close_port(local_state[port])
             local_state[port] = config_data[port]
+            hookenv.open_port(config_data[port])
     else:
-        local_state.setdefault(port, config_data[port])
+        local_state[port] = config_data[port]
     local_state.save()
     hookenv.open_port(config_data[port])
 
 
 def cc_db_migrate():
-    log("Starting db:migrate...", DEBUG)
-    os.chdir(CC_DIR)
-    #TODO: make it idempotent by deleting existing db if exists
-    run(['sudo', '-u', 'vcap', '-g', 'vcap',
-        'CLOUD_CONTROLLER_NG_CONFIG={}'.format(CC_CONFIG_FILE),
-        'bundle', 'exec', 'rake', 'db:migrate'])
-    local_state['ccdbmigrated'] = True
+    if not 'ccdbmigrated' in local_state:
+        log("Starting db:migrate...", DEBUG)
+        os.chdir(CC_DIR)
+        #TODO: make it idempotent by deleting existing db if exists
+        run(['sudo', '-u', 'vcap', '-g', 'vcap',
+            'CLOUD_CONTROLLER_NG_CONFIG={}'.format(CC_CONFIG_FILE),
+            'bundle', 'exec', 'rake', 'db:migrate'])
+        local_state['ccdbmigrated'] = True
+        local_state.save()
 
 
 @hooks.hook()
@@ -158,9 +167,10 @@ def install():
     execd_preinstall()
     add_source(config_data['source'], config_data['key'])
     apt_update(fatal=True)
-    apt_install(packages=CC_PACKAGES, fatal=True)
+    apt_install(packages=filter_installed_packages(CC_PACKAGES), fatal=True)
     host.adduser('vcap')
-    host.write_file(CC_DB_FILE, '', owner='vcap', group='vcap', perms=0775)
+    if not os.path.isfile(CC_DB_FILE):
+        host.write_file(CC_DB_FILE, '', owner='vcap', group='vcap', perms=0775)
     dirs = [CC_RUN_DIR, NGINX_RUN_DIR, CC_LOG_DIR, NGINX_LOG_DIR,
             '/var/vcap/data/cloud_controller_ng/tmp/uploads',
             '/var/vcap/data/cloud_controller_ng/tmp/staged_droplet_uploads',
@@ -170,15 +180,14 @@ def install():
     chownr('/var/vcap', owner='vcap', group='vcap')
     chownr(CF_DIR, owner='vcap', group='vcap')
     install_upstart_scripts()
-    if not 'ccdbmigrated' in local_state:
-        local_state['ccdbmigrated'] = False
     #reconfigure NGINX as upstart job and use specific config file
     run(['update-rc.d', '-f', 'nginx', 'remove'])
     host.service_stop('nginx')
-    try:
-        os.remove('/etc/init.d/nginx')
-    except OSError:
-        pass
+    if os.path.isfile('/etc/init.d/nginx'):
+        try:
+            os.remove('/etc/init.d/nginx')
+        except OSError:
+            pass
 
 
 @hooks.hook("config-changed")
@@ -190,14 +199,14 @@ def config_changed():
     if host.service_running('cf-nginx'):
         #TODO replace with config reload
         host.service_restart('cf-nginx')
-        if host.service_running('cf-cloudcontroller') and emit_cc_conf():
-            host.service_restart('cf-cloudcontroller')
+    if emit_cc_conf() and host.service_running('cf-cloudcontroller'):
+        host.service_restart('cf-cloudcontroller')
 
 
 @hooks.hook()
 def start():
-    if local_state['config_ok'] :
-        if not local_state['ccdbmigrated']:
+    if 'config_ok' in local_state:
+        if not 'ccdbmigrated' in local_state:
             cc_db_migrate()
         else:
             if not host.service_running('cf-cloudcontroller'):
@@ -232,9 +241,8 @@ def nats_relation_changed():
         local_state['nats_user'] = hookenv.relation_get('nats_user')
         local_state['nats_password'] = \
             hookenv.relation_get('nats_password')
-    if emit_cc_conf():
-        if not 'ccdbmigrated' in local_state:
-            cc_db_migrate()
+        local_state.save()
+        config_changed()
         start()
 
 
@@ -255,14 +263,14 @@ def nats_relation_departed():
 def uaa_relation_changed():
     for relid in hookenv.relation_ids('uaa'):
         local_state['uaa_address'] = hookenv.relation_get('uaa_address')
-    if emit_cc_conf():
+        local_state.save()
+        config_changed()
         start()
 
 
 @hooks.hook('uaa-relation-broken')
 def uaa_relation_broken():
-    pass
-    #stop()
+    stop()
 
 
 @hooks.hook('uaa-relation-departed')
@@ -275,19 +283,16 @@ def uaa_relation_departed():
 
 @hooks.hook('router-relation-changed')
 def router_relation_changed():
-    #for relid in hookenv.relation_ids('router'):
-    #    local_state['router_address'] = hookenv.relation_get('router_address')
-    #if emit_cc_conf():
-    #    if not 'ccdbmigrated' in local_state:
-    #        cc_db_migrate()
-    #    start()
-    pass
+    for relid in hookenv.relation_ids('router'):
+        local_state['system_domain'] = hookenv.relation_get('router_address')
+        local_state.save()
+        config_changed()
+        start()
 
 
 @hooks.hook('router-relation-broken')
 def router_relation_broken():
-    pass
-    #stop()
+    stop()
 
 
 @hooks.hook('router-relation-departed')

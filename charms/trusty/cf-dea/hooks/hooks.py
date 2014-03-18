@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #!/usr/bin/env python
 # vim: et ai ts=4 sw=4:
 
@@ -86,6 +85,7 @@ def run(command, exit_on_error=True, quiet=False):
 def emit_deaconf():
     deacontext = {}
     success = True
+    deacontext['domain'] = config_data['domain']
     if 'nats_user' in local_state:
         deacontext.setdefault('nats_user', local_state['nats_user'])
     else:
@@ -107,6 +107,7 @@ def emit_deaconf():
         with open(DEA_CONFIG_PATH, 'w') as deaconf:
             deaconf.write(render_template('dea.yml', deacontext))
         local_state['config_ok'] = 'true'
+        local_state.save()
         return True
     else:
         if 'config_ok' in local_state:
@@ -160,8 +161,8 @@ def start():
 def config_changed():
     #port_config_changed('router_port')
         if emit_deaconf() and host.service_running('cf-dea'):
-        #TODO replace with config reload
-        host.service_restart('cf-dea')
+            #TODO replace with config reload
+            host.service_restart('cf-dea')
 
 
 @hooks.hook()
