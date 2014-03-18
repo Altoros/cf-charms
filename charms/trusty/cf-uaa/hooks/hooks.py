@@ -142,7 +142,6 @@ def emit_config(module_name, config_items,
     local_state[module_name + '_ok'] = success
     local_state.save
 
-
     if success:
         log('Emited %s config successfully.' % module_name)
         config_text = render_template(template_config_file, config_context)
@@ -158,7 +157,7 @@ def emit_config(module_name, config_items,
 
 def emit_registrar_config():
     required_config_items = ['nats_user', 'nats_password', 'nats_address',
-                             'nats_port', 'varz_user', 'varz_password', 
+                             'nats_port', 'varz_user', 'varz_password',
                              'uaa_ip', 'domain']
 
     emit_config('registrar', required_config_items,
