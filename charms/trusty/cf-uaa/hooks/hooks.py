@@ -118,7 +118,7 @@ def find_config_parameter(key):
     value = hookenv.relation_get(key)
     if value is None and key in config_data:
         value = config_data[key]
-    value
+    return value
 
 
 def emit_config(module_name, config_items,
@@ -141,7 +141,7 @@ def emit_config(module_name, config_items,
             config_file.write(render_template(template_config_file,
                               config_context))
     else:
-        log('Emit %s conf unsuccessfull' % module_name, WARNING)
+        log('Emit %s config unsuccessfull' % module_name, WARNING)
 
     return success
 
@@ -206,10 +206,12 @@ def config_changed():
     local_state['varz_ok'] = False
     local_state['registrar_ok'] = False
     local_state['uaa_ok'] = False
-    #port_config_changed('uaa_port')
+
     config_items = ['nats_user', 'nats_password', 'nats_port',
                     'nats_address', 'varz_user', 'varz_password']
+
     for key in config_items:
+        log(("%s = %s" % (key, find_config_parameter(key))), DEBUG)
         local_state[key] = find_config_parameter(key)
 
     local_state.save()
@@ -251,7 +253,7 @@ def nats_relation_changed():
     log("UAA: nats-relation-changed >>> (attempt to add NATS) ")
     config_changed()
 
-    # for relid in hookenv.relation_ids('nats'):
+    #
     #     # TODO add checks of values
     #     # TODO run only if values are changed
     #     for key in ['nats_address', 'nats_port',
