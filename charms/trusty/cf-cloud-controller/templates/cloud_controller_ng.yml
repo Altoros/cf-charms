@@ -1,4 +1,5 @@
 ---
+# TODO cc_ip cc public ip 
 local_route: {{ cc_ip }}.xip.io
 port: 9022 # actually it ignored due to using of nginx
 pid_filename: /var/vcap/sys/run/cloud_controller_ng/cloud_controller_ng.pid
@@ -10,18 +11,18 @@ message_bus_servers:
 
 
 external_domain:
-  - api.{{ system_domain }}.xip.io
+  - api.{{ domain }}
 
-system_domain_organization: {{ system_domain_organization }}
-system_domain: {{ system_domain }}.xip.io
-app_domains: [ {{ system_domain }}.xip.io ]
-srv_api_uri: api.{{ system_domain }}.xip.io
+system_domain_organization: {{ default_organization }}
+system_domain: {{ domain }}
+app_domains: [ {{ domain }} ]
+srv_api_uri: http://api.{{ domain }}
 
 default_app_memory: 1024
 
 cc_partition: default
 
-bootstrap_admin_email: admin@{{ system_domain_organization }}
+bootstrap_admin_email: admin@{{ default_organization }}
 
 bulk_api:
   auth_user: bulk_api
@@ -67,14 +68,19 @@ db: &db
 
 
 login:
-  url: http://{{ uaa_address }}:8080
+  url: http://uaa.{{ domain }}
 
 uaa:
-  url: http://{{ uaa_address }}:8080
+  url: http://uaa.{{ domain }}
   resource_id: cloud_controller
-  symmetric_secret: cc-secret
+  # symmetric_secret: cc-secret
   verification_key: |
-
+    -----BEGIN PUBLIC KEY-----
+    MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDHFr+KICms+tuT1OXJwhCUmR2d
+    KVy7psa8xzElSyzqx7oJyfJ1JZyOzToj9T5SfTIq396agbHJWVfYphNahvZ/7uMX
+    qHxf+ZH9BL1gk9Y6kCnbM5R60gfwjyW1/dQPjOzn9N394zd2FJoFHwdq9Qs0wBug
+    spULZVNRxq7veq/fzwIDAQAB
+    -----END PUBLIC KEY-----
 
 # App staging parameters
 staging:
