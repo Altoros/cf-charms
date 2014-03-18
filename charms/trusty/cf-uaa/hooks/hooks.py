@@ -113,7 +113,7 @@ def all_configs_are_rendered():
 def emit_all_configs():
     emit_registrar_config()
     emit_varz_config()
-    emit_uaa_config())
+    emit_uaa_config()
 
 
 def find_config_parameter(key):
