@@ -107,8 +107,8 @@ def emit_routerconf():
                     'router_status_port', 'router_status_user', 'router_status_password']
 
     for item in config_items:
-        if key in local_state:
-            routercontext[key] = local_state[key]
+        if item in local_state:
+            routercontext[item] = local_state[item]
         else:
             success = False
 

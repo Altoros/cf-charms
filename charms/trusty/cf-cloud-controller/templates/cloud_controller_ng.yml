@@ -1,14 +1,12 @@
 ---
 # TODO cc_ip cc public ip 
-local_route: {{ cc_ip }}.xip.io
+local_route: {{ cc_ip }}
 port: 9022 # actually it ignored due to using of nginx
 pid_filename: /var/vcap/sys/run/cloud_controller_ng/cloud_controller_ng.pid
 development_mode: false
 
 message_bus_servers:
-
   - nats://{{ nats_user }}:{{ nats_password }}@{{ nats_address }}:{{ nats_port }}
-
 
 external_domain:
   - api.{{ domain }}

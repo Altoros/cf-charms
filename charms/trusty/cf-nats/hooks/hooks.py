@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 # vim: et ai ts=4 sw=4:
 
+import sys
 import os
 import pwd
 import grp
-import sys
+
 import subprocess
 import glob
 import shutil
 import cPickle as pickle
+
 
 from charmhelpers.core import hookenv, host
 from charmhelpers.core.hookenv import log, DEBUG, ERROR

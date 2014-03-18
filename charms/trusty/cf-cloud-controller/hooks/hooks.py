@@ -95,7 +95,7 @@ class State(dict):
         pickle.dump(state, open(self._state_file, 'wb'))
 
 
-def emit_cc_conf():
+def emit_cloud_controller_config():
     if 'config_ok' in local_state:
         del local_state['config_ok']
     local_state.save()
@@ -104,18 +104,15 @@ def emit_cc_conf():
     cc_context['cc_ip'] = hookenv.unit_private_ip()
     # do we need CC port?
     cc_context['cc_port'] = config_data['cc_port']
-    cc_context['system_domain_organization'] = \
-        config_data['system_domain_organization']
-    params = (
-        'nats_address', 'nats_port', 'nats_user', 'nats_password',
-        'system_domain',
-        'uaa_address',
-        )
-    for item in params:
+    cc_context['default_organization'] = config_data['default_organization']
+    config_items = ['nats_address', 'nats_port', 'nats_user', 'nats_password',
+                    'domain', 'uaa_address']
+
+    for item in config_items:
         if item in local_state:
             cc_context[item] = local_state[item]
         else:
-            log(('#emit_cc_conf: missing %s item.' % item), ERROR)
+            log(('#emit_cloud_controller_config: missing %s item.' % item), ERROR)
             return False
     local_state['config_ok'] = True
     local_state.save()
@@ -197,9 +194,9 @@ def config_changed():
     port_config_changed('nginx_port')
     emit_nginx_conf()
     if host.service_running('cf-nginx'):
-        #TODO replace with config reload
+        # TODO replace with config reload
         host.service_restart('cf-nginx')
-    if emit_cc_conf() and host.service_running('cf-cloudcontroller'):
+    if emit_cloud_controller_config() and host.service_running('cf-cloudcontroller'):
         host.service_restart('cf-cloudcontroller')
 
 
