@@ -1,6 +1,6 @@
 ---
 logging:
-  file: /var/log/cloudfoundry/cfuaa/cf-registrar.log
+  file: /var/vcap/sys/log/uaa/cf-registrar.log
   level: info
 
 message_bus_servers:
