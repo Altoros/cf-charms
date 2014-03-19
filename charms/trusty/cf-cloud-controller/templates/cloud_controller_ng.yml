@@ -71,7 +71,7 @@ login:
 uaa:
   url: http://uaa.{{ domain }}
   resource_id: cloud_controller
-  # symmetric_secret: cc-secret
+  #symmetric_secret: cc-secret
   verification_key: |
     -----BEGIN PUBLIC KEY-----
     MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDHFr+KICms+tuT1OXJwhCUmR2d

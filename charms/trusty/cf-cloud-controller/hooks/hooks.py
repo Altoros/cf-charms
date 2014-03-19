@@ -130,7 +130,7 @@ def port_config_changed(port):
 
 
 def cc_db_migrate():
-    if not 'ccdbmigrated' in local_state:
+    if not local_state['ccdbmigrated']:
         log("Starting db:migrate...", DEBUG)
         os.chdir(CC_DIR)
         #TODO: make it idempotent by deleting existing db if exists
