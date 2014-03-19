@@ -8,7 +8,7 @@ import subprocess
 
 def run_via_ssh(ssh_prefix, command):
     command = '%s "%s"' % (ssh_prefix, command)
-    print command
+    #print command
     subprocess.call(command, shell=True)
 
 
@@ -26,7 +26,9 @@ juju_status = yaml.load(juju_status_yaml)
 router_service_name = 'router'
 ssh_key_location = '~/.juju/ssh/juju_id_rsa'
 services = juju_status['services']
-
+if not router_service_name in services:
+    print 'Router not found'
+    exit(1)
 router_public_address = service_address(services[router_service_name])
 domain = 'example.net'
 host_item = "%s api.%s uaa.%s" % (router_public_address, domain, domain)
@@ -42,6 +44,7 @@ hosts_config = ["127.0.0.1 localhost",
 
 for service in services.values():
     service_ip = service_address(service)
+    print 'Processing machine {}'.format(service_ip)
 
     allow_access_to_hosts = ("sudo chown ubuntu /etc/hosts && " 
                              "sudo chmod +w /etc/hosts && "

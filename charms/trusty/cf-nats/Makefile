@@ -12,8 +12,6 @@ clean:
 run: lint deploy
 log:
 	tail -f ~/.juju/local/log/unit-nats-0.log
-destroy:
-	juju destroy-service nats
 deploy:
 
 ifdef m

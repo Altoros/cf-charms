@@ -10,6 +10,8 @@ clean:
 	find . -name '*.pyc' -delete
 	find . -name '*.bak' -delete
 run: lint deploy
+uh:
+	../../../helpers/update_helpers.py
 vlog:
 	view ~/.juju/local/log/unit-uaa-0.log
 log:

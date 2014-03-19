@@ -3,20 +3,18 @@
 
 import os
 
-import pwd
-import grp
 import sys
-import subprocess
 # import glob
 import shutil
-import cPickle as pickle
 
 from helpers.config_helper import find_config_parameter, emit_config
 from helpers.upstart_helper import install_upstart_scripts
+from helpers.common import chownr, run
+from helpers.state import State
 
 from charmhelpers.core import hookenv, host
 # from charmhelpers.core.hookenv import log, DEBUG, ERROR, WARNING
-from charmhelpers.core.hookenv import log, DEBUG, ERROR
+from charmhelpers.core.hookenv import log, DEBUG
 
 from charmhelpers.fetch import (
     apt_install, apt_update, add_source, filter_installed_packages
@@ -24,70 +22,6 @@ from charmhelpers.fetch import (
 # from utils import render_template
 
 hooks = hookenv.Hooks()
-
-
-def run(command, exit_on_error=True, quiet=False):
-    '''Run a command and return the output.'''
-    if not quiet:
-        log("Running {!r}".format(command), DEBUG)
-    p = subprocess.Popen(
-        command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-        shell=isinstance(command, basestring))
-    p.stdin.close()
-    lines = []
-    for line in p.stdout:
-        if line:
-            if not quiet:
-                print line
-            lines.append(line)
-        elif p.poll() is not None:
-            break
-
-    p.wait()
-
-    if p.returncode == 0:
-        return '\n'.join(lines)
-
-    if p.returncode != 0 and exit_on_error:
-        log("ERROR: {}".format(p.returncode), ERROR)
-        sys.exit(p.returncode)
-
-    raise subprocess.CalledProcessError(
-        p.returncode, command, '\n'.join(lines))
-
-
-def chownr(path, owner, group):
-    uid = pwd.getpwnam(owner).pw_uid
-    gid = grp.getgrnam(group).gr_gid
-    for root, dirs, files in os.walk(path):
-        for momo in dirs:
-            os.chown(os.path.join(root, momo), uid, gid)
-            for momo in files:
-                os.chown(os.path.join(root, momo), uid, gid)
-
-
-class State(dict):
-    """Encapsulate state common to the unit for republishing to relations."""
-    def __init__(self, state_file):
-        super(State, self).__init__()
-        self._state_file = state_file
-        self.load()
-
-    def load(self):
-        '''Load stored state from local disk.'''
-        if os.path.exists(self._state_file):
-            state = pickle.load(open(self._state_file, 'rb'))
-        else:
-            state = {}
-        self.clear()
-
-        self.update(state)
-
-    def save(self):
-        '''Store state to local disk.'''
-        state = {}
-        state.update(self)
-        pickle.dump(state, open(self._state_file, 'wb'))
 
 
 def port_config_changed(port):
@@ -210,6 +144,7 @@ def start():
         if not host.service_running('cf-registrar'):
             log("Starting cf registrar as upstart job")
             host.service_start('cf-registrar')
+            log("Starting registrar disabled")
     else:
         log("UAA: Start hook: NOT all configs are rendered.")
 
