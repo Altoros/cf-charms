@@ -1,22 +1,19 @@
 ---
 logging:
-  # file: /var/log/cloudfoundry/cfuaa/cf-registrar.log
-  level: all
+  file: /var/vcap/sys/log/uaa/cf-registrar.log
+  level: info
 
 message_bus_servers:
   - nats://{{ nats_user }}:{{ nats_password }}@{{ nats_address }}:{{ nats_port }}
 
 # domain is set to domain name that is resolved to router ip.
-uri: uaa.{{ domain }}
+uri: 
+  - uaa.{{ domain }}
 
-host: {{ uaa_ip }}   # Q what to use domain or ip ?
+host: 127.0.0.1   # Q what to use domain or ip ?
 index: 1
 port: 8080  # This is port of tomcat UAA.
 tags:
   component: uaa
 varz:
-  type: new_component
-  username: {{ varz_user }}
-  password: {{ varz_password }}
-
-
+  file: /var/lib/cloudfoundry/cfuaa/jobs/config/varz.yml

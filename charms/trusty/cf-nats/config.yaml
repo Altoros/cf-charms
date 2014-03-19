@@ -1,7 +1,8 @@
 options:
   domain: 
     type: string
-    default: "10.0.3.187.xip.io"
+    # TODO don't forget add resolution example.net to router ip into /etc/hosts
+    default: "example.net"   
     description: "Router domain name. Currently we use xip.io service to resolve local IP's."
   nats_port:
     type: int

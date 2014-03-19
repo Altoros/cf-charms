@@ -1,20 +1,18 @@
 ---
-
-
 nats:
-
   - host: {{ nats_address }}
     port: {{ nats_port }}
     user: {{ nats_user }}
     pass: "{{ nats_password }}"
 
+status:
+  port: {{ router_status_port }}
+  user: {{ router_status_user }}
+  pass: {{ router_status_password }}
 
 logging:
   file: /var/vcap/sys/log/gorouter/gorouter.log
-                                                            
   level: info
-
-
 
 port: {{ router_port }}
 index: 1

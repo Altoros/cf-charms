@@ -1,12 +1,10 @@
 ---
- 
- 
- 
+
 name: uaa
- 
+
 logging:
-  config: /var/log/cloudfoundry/uaa/jobs/config/log4j.properties
- 
+  config: /var/log/cloudfoundry/cfuaa/jobs/config/log4j.properties
+
 jwt:
   token:
     signing-key: |
@@ -25,7 +23,7 @@ jwt:
         HH6Qlq/6UOV5wP8+GAcCQFgRCcB+hrje8hfEEefHcFpyKH+5g1Eu1k0mLrxK2zd+
         4SlotYRHgPCEubokb2S1zfZDWIXW3HmggnGgM949TlY=
         -----END RSA PRIVATE KEY-----
- 
+
     verification-key: |
         -----BEGIN PUBLIC KEY-----
         MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDHFr+KICms+tuT1OXJwhCUmR2d
@@ -33,36 +31,32 @@ jwt:
         qHxf+ZH9BL1gk9Y6kCnbM5R60gfwjyW1/dQPjOzn9N394zd2FJoFHwdq9Qs0wBug
         spULZVNRxq7veq/fzwIDAQAB
         -----END PUBLIC KEY-----
- 
- 
- 
+
 oauth:
-  
+
   authorize:
     ssl: true
-  
+
   client:
-  
+
     autoapprove:
       - cf
-  
+
   clients:
- 
+
     admin:
       authorized-grant-types: client_credentials
       authorities: clients.read,clients.write,clients.secret,uaa.admin,scim.read,password.write
       id: admin
       secret: "admin-secret"
- 
- 
+
     cloud_controller:
       authorized-grant-types: client_credentials
       authorities: scim.read,scim.write,password.write
       id: cloud_controller
       secret: "cc-secret"
       access-token-validity: 604800
- 
- 
+
     cf:
       id: cf
       override: true
@@ -71,17 +65,13 @@ oauth:
       authorities: uaa.none
       access-token-validity: 600
       refresh-token-validity: 2592000
- 
- 
+
 scim:
   userids_enabled: false
- 
- 
+
   user.override: true
- 
+
   users:
     - admin|admin|scim.write,scim.read,openid,cloud_controller.admin
- 
- 
- 
+
 login.addnew: false

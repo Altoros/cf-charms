@@ -10,6 +10,9 @@ import pwd
 import grp
 import cPickle as pickle
 
+from helpers.config_helper import find_config_parameter, emit_config
+from helpers.upstart_helper import install_upstart_scripts
+
 from charmhelpers.core import hookenv, host
 from charmhelpers.payload.execd import execd_preinstall
 
@@ -95,43 +98,18 @@ class State(dict):
         pickle.dump(state, open(self._state_file, 'wb'))
 
 
-def emit_cc_conf():
-    if 'config_ok' in local_state:
-        del local_state['config_ok']
-    local_state.save()
-    cc_context = {}
-    #cc_context['domain'] = config_data['domain']
-    cc_context['cc_ip'] = hookenv.unit_private_ip()
-    # do we need CC port?
-    cc_context['cc_port'] = config_data['cc_port']
-    cc_context['system_domain_organization'] = \
-        config_data['system_domain_organization']
-    params = (
-        'nats_address', 'nats_port', 'nats_user', 'nats_password',
-        'system_domain',
-        'uaa_address',
-        )
-    for item in params:
-        if item in local_state:
-            cc_context[item] = local_state[item]
-        else:
-            log(('#emit_cc_conf: missing %s item.' % item), ERROR)
-            return False
-    local_state['config_ok'] = True
-    local_state.save()
-    os.chdir(hookenv.charm_dir())
-    with open(CC_CONFIG_FILE, 'w') as cc_conf:
-        cc_conf.write(render_template('cloud_controller_ng.yml', cc_context))
-    return True
+def emit_cloud_controller_config():
+    config_items = ['nats_address', 'nats_port', 'nats_user', 'nats_password',
+                    'domain', 'default_organization', 'cc_ip']
+
+    emit_config('cloud_controller', config_items, local_state,
+                'cloud_controller_ng.yml', CC_CONFIG_FILE)
 
 
-def emit_nginx_conf():
-    nginx_context = {
-        'nginx_port': config_data['nginx_port'],
-    }
-    os.chdir(hookenv.charm_dir())
-    with open(NGINX_CONFIG_FILE, 'w') as nginx_conf:
-        nginx_conf.write(render_template('nginx.conf', nginx_context))
+def emit_nginx_config():
+    config_items = ['nginx_port']
+    emit_config('nginx', config_items, local_state,
+                'nginx.conf', NGINX_CONFIG_FILE)
 
 
 def port_config_changed(port):
@@ -141,17 +119,18 @@ def port_config_changed(port):
             log('Stored value for {} isn\'t equal to config data'.format(port),
                 DEBUG)
             log('Closing port {}'.format(str(local_state[port])), WARNING)
-            hookenv.close_port(local_state[port])
-            local_state[port] = config_data[port]
-            hookenv.open_port(config_data[port])
-    else:
-        local_state[port] = config_data[port]
-    local_state.save()
+            try: 
+                hookenv.close_port(local_state[port])
+            except:
+                log('{} port is not closed.'.format(str(local_state[port])), WARNING)
+
     hookenv.open_port(config_data[port])
+    local_state[port] = config_data[port]
+    local_state.save()
 
 
 def cc_db_migrate():
-    if not 'ccdbmigrated' in local_state:
+    if not local_state['ccdbmigrated']:
         log("Starting db:migrate...", DEBUG)
         os.chdir(CC_DIR)
         #TODO: make it idempotent by deleting existing db if exists
@@ -192,31 +171,43 @@ def install():
 
 @hooks.hook("config-changed")
 def config_changed():
-    local_state['config_ok'] = False
-    local_state.save()
-    port_config_changed('nginx_port')
-    emit_nginx_conf()
-    if host.service_running('cf-nginx'):
-        #TODO replace with config reload
-        host.service_restart('cf-nginx')
-    if emit_cc_conf() and host.service_running('cf-cloudcontroller'):
-        host.service_restart('cf-cloudcontroller')
+    local_state['cloud_controller_ok'] = False
+    local_state['ccdbmigrated'] = False
 
+    config_items = ['nats_address', 'nats_port', 'nats_user', 'nats_password', 
+                    'domain', 'default_organization', 'nginx_port']
+
+    for key in config_items:
+        value = find_config_parameter(key, hookenv, config_data)
+        log(("%s = %s" % (key, value)), DEBUG)
+        local_state[key] = value
+
+    local_state['cc_ip'] = hookenv.unit_private_ip()
+    local_state.save()
+
+    port_config_changed('nginx_port')
+    
+    emit_nginx_config()
+    emit_cloud_controller_config()
+
+    stop()
+    start()
 
 @hooks.hook()
 def start():
-    if 'config_ok' in local_state:
-        if not 'ccdbmigrated' in local_state:
+    if local_state['cloud_controller_ok']:
+        if not local_state['ccdbmigrated']:
             cc_db_migrate()
-        else:
-            if not host.service_running('cf-cloudcontroller'):
-                log("Starting cloud controller as upstart job")
-                host.service_start('cf-cloudcontroller')
-            if (not host.service_running('cf-nginx')) and \
-                    host.service_running('cf-cloudcontroller'):
-                log("Starting NGINX")
-                host.service_start('cf-nginx')
-            hookenv.open_port(local_state['nginx_port'])
+
+        if not host.service_running('cf-cloudcontroller'):
+            log("Starting cloud controller as upstart job")
+            host.service_start('cf-cloudcontroller')
+
+        if not host.service_running('cf-nginx'):
+            log("Starting NGINX")
+            host.service_start('cf-nginx')
+
+        hookenv.open_port(local_state['nginx_port'])
 
 
 @hooks.hook()
@@ -235,16 +226,7 @@ def db_relation_changed():
 
 @hooks.hook('nats-relation-changed')
 def nats_relation_changed():
-    for relid in hookenv.relation_ids('nats'):
-        local_state['nats_address'] = hookenv.relation_get('nats_address')
-        local_state['nats_port'] = hookenv.relation_get('nats_port')
-        local_state['nats_user'] = hookenv.relation_get('nats_user')
-        local_state['nats_password'] = \
-            hookenv.relation_get('nats_password')
-        local_state.save()
-        config_changed()
-        start()
-
+    config_changed()
 
 @hooks.hook('nats-relation-broken')
 def nats_relation_broken():
@@ -256,39 +238,17 @@ def nats_relation_departed():
     pass
 
 
-####################### UAA relation hooks #####################
-
-
-@hooks.hook('uaa-relation-changed')
-def uaa_relation_changed():
-    for relid in hookenv.relation_ids('uaa'):
-        local_state['uaa_address'] = hookenv.relation_get('uaa_address')
-        local_state.save()
-        config_changed()
-        start()
-
-
-@hooks.hook('uaa-relation-broken')
-def uaa_relation_broken():
-    stop()
-
-
-@hooks.hook('uaa-relation-departed')
-def uaa_relation_departed():
-    pass
-
-
 ####################### router relation hooks #####################
 
 
 @hooks.hook('router-relation-changed')
 def router_relation_changed():
-    for relid in hookenv.relation_ids('router'):
-        local_state['system_domain'] = hookenv.relation_get('router_address')
-        local_state.save()
-        config_changed()
-        start()
-
+    # for relid in hookenv.relation_ids('router'):
+    #     local_state['system_domain'] = hookenv.relation_get('router_address')
+    #     local_state.save()
+    #     config_changed()
+    #     start()
+    pass
 
 @hooks.hook('router-relation-broken')
 def router_relation_broken():

@@ -1,12 +1,26 @@
 options:
   domain: 
     type: string
-    default: "10.0.3.187.xip.io"
+    # TODO don't forget add resolution example.net to router ip into /etc/hosts
+    default: "example.net"   
     description: "Router domain name. Currently we use xip.io service to resolve local IP's."
   router_port:
     type: int
     default: 80
     description: 'Port nunmber that will be used to run router.'
+  router_status_port:
+    type: int
+    default: 8080
+    description: TBD
+  router_status_user:
+    type: string
+    default: "user"
+    description: TBD
+  router_status_password:
+    type: string
+    default: "password"
+    description: TBD
+
   source:
     type: string
     default: 'ppa:cf-charm/ppa'

@@ -11,6 +11,10 @@ from cloudfoundry import ROUTER_PACKAGES
 from charmhelpers.core import hookenv, host
 from charmhelpers.payload.execd import execd_preinstall
 import cPickle as pickle
+
+from helpers.config_helper import find_config_parameter, emit_config
+from helpers.upstart_helper import install_upstart_scripts
+
 from charmhelpers.core.hookenv import \
     (
         CRITICAL, ERROR, WARNING, INFO, DEBUG, log,
@@ -59,11 +63,6 @@ def Template(*args, **kw):
     return Template(*args, **kw)
 
 
-def install_upstart_scripts():
-    for x in glob.glob('files/upstart/*.conf'):
-        print 'Installing upstart job:', x
-        shutil.copy(x, '/etc/init/')
-
 
 def run(command, exit_on_error=True, quiet=False):
     '''Run a command and return the output.'''
@@ -99,40 +98,14 @@ def run(command, exit_on_error=True, quiet=False):
         p.returncode, command, '\n'.join(lines))
 
 
-def emit_routerconf():
-    routercontext = {}
-    success = True
-    if 'nats_user' in local_state:
-        routercontext.setdefault('nats_user', local_state['nats_user'])
-    else:
-        success = False
-    if 'nats_password' in local_state:
-        routercontext.setdefault('nats_password', local_state['nats_password'])
-    else:
-        success = False
-    if 'nats_port' in local_state:
-        routercontext.setdefault('nats_port', local_state['nats_port'])
-    else:
-        success = False
-    if 'nats_address' in local_state:
-        routercontext.setdefault('nats_address', local_state['nats_address'])
-    else:
-        success = False
-    if 'router_port' in local_state:
-        routercontext.setdefault('router_port', local_state['router_port'])
-    else:
-        success = False
-    if success:
-        with open('/var/lib/cloudfoundry/config/gorouter.yml', 'w') as routerconf:
-            routerconf.write(render_template('gorouter.yml', routercontext))
-        local_state['config_ok'] = 'true'
-        local_state.save()
-        return True
-    else:
-        if 'config_ok' in local_state:
-            del local_state['config_ok']
-            local_state.save()
-        return False
+def emit_router_config():
+
+    config_items = ['nats_user', 'nats_password', 'nats_port', 'nats_address', 'router_port',
+                    'router_status_port', 'router_status_user', 'router_status_password']
+
+    emit_config('router', config_items, local_state,
+                'gorouter.yml', ROUTER_CONFIG_FILE)
+
 
 
 hooks = hookenv.Hooks()
@@ -141,8 +114,6 @@ hooks = hookenv.Hooks()
 @hooks.hook()
 def install():
     execd_preinstall()
-    #add_source(config_data['source'], config_data['key'])
-    #apt_update(fatal=True)
     apt_install(packages=ROUTER_PACKAGES, fatal=True)
     host.adduser('vcap')
     dirs = [CF_DIR + '/src/github.com/cloudfoundry', CF_DIR + '/config',
@@ -150,15 +121,16 @@ def install():
             '/var/vcap/sys/run/gorouter', '/var/vcap/sys/log/gorouter']
     for dir in dirs:
         host.mkdir(dir, owner='vcap', group='vcap', perms=0775)
+
     install_upstart_scripts()
-    emit_routerconf()
-    #os.getcwd()
     os.chdir(CF_DIR)
     os.environ['GOPATH'] = CF_DIR
     os.environ["PATH"] = CF_DIR + os.pathsep + os.environ["PATH"]
     #ToDo: git clone is nor idempotent. If repo dir exists it exits with error
     #fix it by deleting 'src' directory before. This won't allow to redeploy to an existing machine
     os.chdir(CF_DIR + '/src/github.com/cloudfoundry')
+    # TODO: check if repo already exists
+    # CAUSES ERROR fatal: destination path 'gorouter' already exists and is not an empty directory.
     run(['git', 'clone', 'https://github.com/cloudfoundry/gorouter.git'])
     os.chdir(CF_DIR + '/src/github.com/stretchr/')
     run(['git', 'clone', 'https://github.com/stretchr/objx.git'])
@@ -175,31 +147,46 @@ def port_config_changed(port):
     '''Cheks if value of port changed close old port and open a new one'''
     if port in local_state:
         if local_state[port] != config_data[port]:
-            hookenv.close_port(local_state[port])
-            local_state[port] = config_data[port]
-    else:
-        local_state.setdefault(port, config_data[port])
-    local_state.save()
+            log('Stored value for {} isn\'t equal to config data'.format(port),
+                DEBUG)
+            log('Closing port {}'.format(str(local_state[port])), WARNING)
+            try: 
+                hookenv.close_port(local_state[port])
+            except:
+                log('{} port is not closed.'.format(str(local_state[port])), WARNING)
+
     hookenv.open_port(config_data[port])
+    local_state[port] = config_data[port]
+    local_state.save()
 
 
 @hooks.hook()
 def start():
-    if 'config_ok' in local_state:
+    if local_state['router_ok']:
         if not host.service_running('gorouter'):
-            hookenv.open_port(local_state['router_port'])
             log("Starting router daemonized in the background")
             host.service_start('gorouter')
 
 
 @hooks.hook("config-changed")
 def config_changed():
-    port_config_changed('router_port')
-    emit_routerconf()
-    if host.service_running('gorouter'):
-        #TODO replace with config reload
-        host.service_restart('gorouter')
+    local_state['router_ok'] = False
 
+    config_items = ['nats_user', 'nats_password', 'nats_port', 'nats_address', 'router_port',
+                    'router_status_port', 'router_status_user', 'router_status_password']
+    
+    for key in config_items:
+        value = find_config_parameter(key, hookenv, config_data)
+        log(("%s = %s" % (key, value)), DEBUG)
+        local_state[key] = value
+
+
+    local_state.save()
+    port_config_changed('router_port')
+    emit_router_config()    
+
+    stop()
+    start()
 
 @hooks.hook()
 def stop():
@@ -210,16 +197,7 @@ def stop():
 
 @hooks.hook('nats-relation-changed')
 def nats_relation_changed():
-    for relid in hookenv.relation_ids('nats'):
-        #TODO add checks of values
-        local_state['nats_address'] = hookenv.relation_get('nats_address')
-        local_state['nats_port'] = hookenv.relation_get('nats_port')
-        local_state['nats_user'] = hookenv.relation_get('nats_user')
-        local_state['nats_password'] = hookenv.relation_get('nats_password')
-        local_state.save()
-    if emit_routerconf():
-        stop()
-        start()
+    config_changed()
 
 
 @hooks.hook('nats-relation-broken')
@@ -227,22 +205,9 @@ def nats_relation_broken():
     stop()
 
 
-@hooks.hook('nats-relation-departed')
-def nats_relation_departed():
-    pass
-
-
 @hooks.hook('router-relation-changed')
 def router_relation_changed():
-    for relid in hookenv.relation_ids('router'):
-        #log('NATS address:' + local_state['nats_address'] + ':'
-        #    + str(local_state['nats_port']), DEBUG)
-        #log('NATS user:' + local_state['nats_user'] + ':'
-        #    + str(local_state['nats_password']), DEBUG)
-        #hookenv.relation_set(relid,
-        #                     uaa_address=local_state['uaa_address'],
-        #                     )
-        pass
+    pass
 
 
 @hooks.hook('router-relation-joined')
@@ -253,6 +218,7 @@ def router_relation_joined():
 ############################### Global variables ############
 ROUTER_PATH = '/var/lib/cloudfoundry/cfgorouter'
 CF_DIR = '/var/lib/cloudfoundry'
+ROUTER_CONFIG_FILE='/var/lib/cloudfoundry/config/gorouter.yml'
 local_state = State('local_state.pickle')
 hook_name = os.path.basename(sys.argv[0])
 config_data = hookenv.config()

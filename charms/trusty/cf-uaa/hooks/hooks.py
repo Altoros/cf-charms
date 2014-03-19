@@ -2,22 +2,26 @@
 # vim: et ai ts=4 sw=4:
 
 import os
+
 import pwd
 import grp
 import sys
 import subprocess
-import glob
+# import glob
 import shutil
 import cPickle as pickle
 
+from helpers.config_helper import find_config_parameter, emit_config
+from helpers.upstart_helper import install_upstart_scripts
+
 from charmhelpers.core import hookenv, host
-from charmhelpers.core.hookenv import log, DEBUG, ERROR, WARNING
+# from charmhelpers.core.hookenv import log, DEBUG, ERROR, WARNING
+from charmhelpers.core.hookenv import log, DEBUG, ERROR
 
 from charmhelpers.fetch import (
     apt_install, apt_update, add_source, filter_installed_packages
 )
-from utils import render_template
-
+# from utils import render_template
 
 hooks = hookenv.Hooks()
 
@@ -86,12 +90,6 @@ class State(dict):
         pickle.dump(state, open(self._state_file, 'wb'))
 
 
-def install_upstart_scripts():
-    for x in glob.glob('files/upstart/*.conf'):
-        log('Installing upstart job:' + x, DEBUG)
-        shutil.copy(x, '/etc/init/')
-
-
 def port_config_changed(port):
     '''Cheks if value of port changed close old port and open a new one'''
     if port in local_state:
@@ -116,63 +114,24 @@ def emit_all_configs():
     emit_uaa_config()
 
 
-def find_config_parameter(key):
-    value = hookenv.relation_get(key)
-    if value is None and key in config_data:
-        value = config_data[key]
-    log('Try to find parameter: %s = %s' % (key, value))
-    return value
-
-
-def emit_config(module_name, config_items,
-                template_config_file, target_config_file):
-    log('try to emit %s config' % module_name)
-
-    config_context = {}
-    success = True
-
-    for key in config_items:
-        log('extract %s from local_state. '
-            '%s = %s' % (key, key, local_state[key]))
-        if local_state[key] is not None:
-            config_context[key] = local_state[key]
-        else:
-            success = False
-
-    local_state[module_name + '_ok'] = success
-    local_state.save
-
-    if success:
-        log('Emited %s config successfully.' % module_name)
-        config_text = render_template(template_config_file, config_context)
-        log("%s config text: " % module_name)
-        log(config_text)
-        with open(target_config_file, 'w') as config_file:
-            config_file.write(config_text)
-    else:
-        log('Emit %s config unsuccessfull' % module_name, WARNING)
-
-    return success
-
-
 def emit_registrar_config():
     required_config_items = ['nats_user', 'nats_password', 'nats_address',
                              'nats_port', 'varz_user', 'varz_password',
                              'uaa_ip', 'domain']
 
-    emit_config('registrar', required_config_items,
+    emit_config('registrar', required_config_items, local_state,
                 'registrar.yml', REGISTRAR_CONFIG_FILE)
 
 
 def emit_varz_config():
     required_config_items = ['varz_password', 'varz_user']
-    emit_config('varz', required_config_items,
+    emit_config('varz', required_config_items, local_state,
                 'varz.yml', VARZ_CONFIG_FILE)
 
 
 def emit_uaa_config():
     required_config_items = []
-    emit_config('uaa', required_config_items,
+    emit_config('uaa', required_config_items, local_state,
                 'uaa.yml', UAA_CONFIG_FILE)
 
 
@@ -197,7 +156,7 @@ def install():
         os.chdir(os.path.join(TOMCAT_HOME, 'lib'))
         log('Installing SQLite jdbc driver jar into Tomcat lib directory',
             DEBUG)
-        #TODO consider installing from charm
+        # TODO consider installing from charm
         run(['wget', 'https://bitbucket.org/xerial/sqlite-jdbc/downloads/'
             'sqlite-jdbc-3.7.2.jar'])
     log("Cleaning up old config files", DEBUG)
@@ -223,8 +182,9 @@ def config_changed():
                     'uaa_ip', 'domain']
 
     for key in config_items:
-        log(("%s = %s" % (key, find_config_parameter(key))), DEBUG)
-        local_state[key] = find_config_parameter(key)
+        value = find_config_parameter(key, hookenv, config_data)
+        log(("%s = %s" % (key, value)), DEBUG)
+        local_state[key] = value
 
     local_state['uaa_ip'] = hookenv.unit_private_ip()
 
@@ -268,18 +228,6 @@ def nats_relation_changed():
     log("UAA: nats-relation-changed >>> (attempt to add NATS) ")
     config_changed()
 
-    #
-    #     # TODO add checks of values
-    #     # TODO run only if values are changed
-    #     for key in ['nats_address', 'nats_port',
-    #                 'nats_user', 'nats_password']:
-    #         log(("%s = %s" % key, hookenv.relation_get(key)), DEBUG)
-    #         local_state[key] = hookenv.relation_get(key)
-    #     local_state.save()
-    # if emit_all_configs():
-    #     stop()
-    #     start()
-
 
 @hooks.hook('nats-relation-broken')
 def nats_relation_broken():
@@ -291,9 +239,7 @@ def nats_relation_broken():
 @hooks.hook('uaa-relation-joined')
 def uaa_relation_joined():
     log('UAA: uaa-relation-joined', DEBUG)
-    for relid in hookenv.relation_ids('uaa'):
-        log('uaa data to send: ' + local_state['uaa_address'], DEBUG)
-        hookenv.relation_set(relid, uaa_address=local_state['uaa_address'])
+    # for relid in hookenv.relation_ids('uaa'):
 
 
 #################### Global variables ####################
