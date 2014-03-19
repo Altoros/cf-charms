@@ -224,15 +224,8 @@ def nats_relation_departed():
 
 @hooks.hook('router-relation-changed')
 def router_relation_changed():
-    for relid in hookenv.relation_ids('router'):
-        #log('NATS address:' + local_state['nats_address'] + ':'
-        #    + str(local_state['nats_port']), DEBUG)
-        #log('NATS user:' + local_state['nats_user'] + ':'
-        #    + str(local_state['nats_password']), DEBUG)
-        #hookenv.relation_set(relid,
-        #                     uaa_address=local_state['uaa_address'],
-        #                     )
-        pass
+    # for relid in hookenv.relation_ids('router'):
+    #     pass
 
 
 @hooks.hook('router-relation-joined')

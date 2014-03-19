@@ -15,8 +15,10 @@ def run_via_ssh(ssh_prefix, command):
 def service_address(service):
     return service['units'].values()[0]['public-address']
 
+
 def generate_add_host_command(host):
     return "sudo echo \'%s\' >> /etc/hosts" % host
+
 
 juju_status_yaml = subprocess.check_output(['juju', 'status'])
 juju_status = yaml.load(juju_status_yaml)
@@ -37,8 +39,6 @@ hosts_config = ["127.0.0.1 localhost",
                 "ff02::2 ip6-allrouters",
                 "ff02::3 ip6-allhosts",
                 host_item]
-
-
 
 for service in services.values():
     service_ip = service_address(service)

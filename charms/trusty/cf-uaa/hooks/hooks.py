@@ -11,8 +11,6 @@ import subprocess
 import shutil
 import cPickle as pickle
 
-# from
-# helpers import find_config_parameter, emit_config, install_upstart_scripts
 from helpers.config_helper import find_config_parameter, emit_config
 from helpers.upstart_helper import install_upstart_scripts
 
@@ -184,7 +182,7 @@ def config_changed():
                     'uaa_ip', 'domain']
 
     for key in config_items:
-        value = find_config_parameter(key, hookenv, local_state)
+        value = find_config_parameter(key, hookenv, config_data)
         log(("%s = %s" % (key, value)), DEBUG)
         local_state[key] = value
 
@@ -241,9 +239,7 @@ def nats_relation_broken():
 @hooks.hook('uaa-relation-joined')
 def uaa_relation_joined():
     log('UAA: uaa-relation-joined', DEBUG)
-    for relid in hookenv.relation_ids('uaa'):
-        log('uaa data to send: ' + local_state['uaa_address'], DEBUG)
-        hookenv.relation_set(relid, uaa_address=local_state['uaa_address'])
+    # for relid in hookenv.relation_ids('uaa'):
 
 
 #################### Global variables ####################

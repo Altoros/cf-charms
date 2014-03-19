@@ -1,13 +1,8 @@
 options:
   domain: 
     type: string
-    # TODO don't forget add resolution example.net to router ip into /etc/hosts
     default: "example.net"   
     description: "Router domain name. Currently we use xip.io service to resolve local IP's."
-  cc_port:
-    type: int
-    default: 9022
-    description: "External Cloud Controller port"
   nginx_port:
     type: int
     default: 9022
