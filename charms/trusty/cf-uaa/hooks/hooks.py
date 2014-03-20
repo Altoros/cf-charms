@@ -144,7 +144,6 @@ def start():
         if not host.service_running('cf-registrar'):
             log("Starting cf registrar as upstart job")
             host.service_start('cf-registrar')
-            log("Starting registrar disabled")
     else:
         log("UAA: Start hook: NOT all configs are rendered.")
 

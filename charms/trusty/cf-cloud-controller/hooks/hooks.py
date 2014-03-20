@@ -3,99 +3,21 @@
 
 import os
 import sys
-import subprocess
-import glob
-import shutil
-import pwd
-import grp
-import cPickle as pickle
-
 from helpers.config_helper import find_config_parameter, emit_config
 from helpers.upstart_helper import install_upstart_scripts
+from helpers.state import State
+from helpers.common import chownr, run
 
 from charmhelpers.core import hookenv, host
 from charmhelpers.payload.execd import execd_preinstall
 
-from charmhelpers.core.hookenv import log, DEBUG, ERROR, WARNING
+from charmhelpers.core.hookenv import log, DEBUG, WARNING
 from charmhelpers.fetch import (
     apt_install, apt_update, add_source, filter_installed_packages
 )
-from utils import render_template
-
-hooks = hookenv.Hooks()
-
-
-def chownr(path, owner, group):
-    uid = pwd.getpwnam(owner).pw_uid
-    gid = grp.getgrnam(group).gr_gid
-    for root, dirs, files in os.walk(path):
-        for momo in dirs:
-            os.chown(os.path.join(root, momo), uid, gid)
-            for momo in files:
-                os.chown(os.path.join(root, momo), uid, gid)
-
-
-def install_upstart_scripts():
-    for x in glob.glob('files/upstart/*.conf'):
-        log('Installing upstart job:' + x, DEBUG)
-        shutil.copy(x, '/etc/init/')
-
-
-def run(command, exit_on_error=True, quiet=False):
-    '''Run a command and return the output.'''
-    if not quiet:
-        log("Running {!r}".format(command), DEBUG)
-    p = subprocess.Popen(
-        command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-        shell=isinstance(command, basestring))
-    p.stdin.close()
-    lines = []
-    for line in p.stdout:
-        if line:
-            if not quiet:
-                print line
-            lines.append(line)
-        elif p.poll() is not None:
-            break
-
-    p.wait()
-
-    if p.returncode == 0:
-        return '\n'.join(lines)
-
-    if p.returncode != 0 and exit_on_error:
-        log("ERROR: {}".format(p.returncode), hookenv.ERROR)
-        sys.exit(p.returncode)
-
-    raise subprocess.CalledProcessError(
-        p.returncode, command, '\n'.join(lines))
 
 
 hooks = hookenv.Hooks()
-
-
-class State(dict):
-    """Encapsulate state common to the unit for republishing to relations."""
-    def __init__(self, state_file):
-        super(State, self).__init__()
-        self._state_file = state_file
-        self.load()
-
-    def load(self):
-        '''Load stored state from local disk.'''
-        if os.path.exists(self._state_file):
-            state = pickle.load(open(self._state_file, 'rb'))
-        else:
-            state = {}
-        self.clear()
-
-        self.update(state)
-
-    def save(self):
-        '''Store state to local disk.'''
-        state = {}
-        state.update(self)
-        pickle.dump(state, open(self._state_file, 'wb'))
 
 
 def emit_cloud_controller_config():
@@ -119,10 +41,11 @@ def port_config_changed(port):
             log('Stored value for {} isn\'t equal to config data'.format(port),
                 DEBUG)
             log('Closing port {}'.format(str(local_state[port])), WARNING)
-            try: 
+            try:
                 hookenv.close_port(local_state[port])
             except:
-                log('{} port is not closed.'.format(str(local_state[port])), WARNING)
+                log('{} port is not closed.'.format(str(local_state[port])),
+                    WARNING)
 
     hookenv.open_port(config_data[port])
     local_state[port] = config_data[port]
@@ -174,7 +97,7 @@ def config_changed():
     local_state['cloud_controller_ok'] = False
     local_state['ccdbmigrated'] = False
 
-    config_items = ['nats_address', 'nats_port', 'nats_user', 'nats_password', 
+    config_items = ['nats_address', 'nats_port', 'nats_user', 'nats_password',
                     'domain', 'default_organization', 'nginx_port']
 
     for key in config_items:
@@ -186,12 +109,13 @@ def config_changed():
     local_state.save()
 
     port_config_changed('nginx_port')
-    
+
     emit_nginx_config()
     emit_cloud_controller_config()
 
     stop()
     start()
+
 
 @hooks.hook()
 def start():
@@ -228,6 +152,7 @@ def db_relation_changed():
 def nats_relation_changed():
     config_changed()
 
+
 @hooks.hook('nats-relation-broken')
 def nats_relation_broken():
     stop()
@@ -249,6 +174,7 @@ def router_relation_changed():
     #     config_changed()
     #     start()
     pass
+
 
 @hooks.hook('router-relation-broken')
 def router_relation_broken():

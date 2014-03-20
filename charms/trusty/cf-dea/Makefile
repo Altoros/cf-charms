@@ -9,7 +9,7 @@ lint:
 clean:
 	find . -name '*.pyc' -delete
 	find . -name '*.bak' -delete
-run: lint deploy
+run: uh lint deploy
 vlog:
 	view ~/.juju/local/log/unit-dea-0.log
 log:
@@ -23,6 +23,8 @@ ifdef m
 else
 	juju deploy --repository=../../. local:trusty/cf-dea dea --show-log
 endif
+uh:
+	../../../helpers/update_helpers.py
 upgrade:
 	juju upgrade-charm --repository=../../. dea --show-log
 js:

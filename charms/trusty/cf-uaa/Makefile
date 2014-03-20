@@ -9,7 +9,7 @@ lint:
 clean:
 	find . -name '*.pyc' -delete
 	find . -name '*.bak' -delete
-run: lint deploy
+run: uh lint deploy
 uh:
 	../../../helpers/update_helpers.py
 vlog:
