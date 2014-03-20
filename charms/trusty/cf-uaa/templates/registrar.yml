@@ -10,7 +10,7 @@ message_bus_servers:
 uri: 
   - uaa.{{ domain }}
 
-host: 127.0.0.1   # Q what to use domain or ip ?
+host: {{ uaa_ip }}   # public IP for UAA service
 index: 1
 port: 8080  # This is port of tomcat UAA.
 tags:
