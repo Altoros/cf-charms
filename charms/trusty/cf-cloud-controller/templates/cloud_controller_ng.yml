@@ -1,7 +1,7 @@
 ---
 # TODO cc_ip cc public ip 
-local_route: {{ cc_ip }}
-port: {{ cc_port }} 
+local_route: {{ domain }}
+port: {{ cc_port }}
 pid_filename: /var/vcap/sys/run/cloud_controller_ng/cloud_controller_ng.pid
 development_mode: false
 
