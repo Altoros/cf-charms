@@ -10,7 +10,7 @@ current_folder = os.path.dirname(os.path.abspath(current_file))
 os.chdir(current_folder)
 
 charms_folders = glob.glob('../charms/trusty/*')
-helper_utils = ['update_helpers.py', 'update_hosts.py']
+helper_utils = ['update_helpers.py', 'update_hosts.py', 'update_domain.py']
 
 for charm_folder in charms_folders:
     charm_helper_folder = os.path.join(charm_folder, 'hooks', 'helpers')

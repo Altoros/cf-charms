@@ -15,7 +15,6 @@ def run_via_ssh(ssh_prefix, command):
 def service_address(service):
     return service['units'].values()[0]['public-address']
 
-
 def generate_add_host_command(host):
     return "sudo echo \'%s\' >> /etc/hosts" % host
 
