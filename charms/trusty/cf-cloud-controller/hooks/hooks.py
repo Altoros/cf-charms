@@ -22,7 +22,7 @@ hooks = hookenv.Hooks()
 
 def emit_cloud_controller_config():
     config_items = ['nats_address', 'nats_port', 'nats_user', 'nats_password',
-                    'domain', 'default_organization', 'cc_ip']
+                    'domain', 'default_organization', 'cc_ip', 'cc_port']
 
     emit_config('cloud_controller', config_items, local_state,
                 'cloud_controller_ng.yml', CC_CONFIG_FILE)
@@ -98,7 +98,7 @@ def config_changed():
     local_state['ccdbmigrated'] = False
 
     config_items = ['nats_address', 'nats_port', 'nats_user', 'nats_password',
-                    'domain', 'default_organization', 'nginx_port']
+                    'domain', 'default_organization', 'nginx_port', 'cc_port']
 
     for key in config_items:
         value = find_config_parameter(key, hookenv, config_data)
@@ -108,9 +108,10 @@ def config_changed():
     local_state['cc_ip'] = hookenv.unit_private_ip()
     local_state.save()
 
-    port_config_changed('nginx_port')
+    port_config_changed('cc_port')
+    #port_config_changed('nginx_port')
 
-    emit_nginx_config()
+    #emit_nginx_config()
     emit_cloud_controller_config()
 
     stop()
@@ -127,20 +128,22 @@ def start():
             log("Starting cloud controller as upstart job")
             host.service_start('cf-cloudcontroller')
 
-        if not host.service_running('cf-nginx'):
-            log("Starting NGINX")
-            host.service_start('cf-nginx')
+        #if not host.service_running('cf-nginx'):
+        #    log("Starting NGINX")
+        #    host.service_start('cf-nginx')
 
-        hookenv.open_port(local_state['nginx_port'])
+        #hookenv.open_port(local_state['nginx_port'])
+        hookenv.open_port(local_state['cc_port'])
 
 
 @hooks.hook()
 def stop():
-    if host.service_running('cf-nginx'):
-        host.service_stop('cf-nginx')
+    #if host.service_running('cf-nginx'):
+    #    host.service_stop('cf-nginx')
     if host.service_running('cf-cloudcontroller'):
         host.service_stop('cf-cloudcontroller')
-    hookenv.close_port(local_state['nginx_port'])
+    #hookenv.close_port(local_state['nginx_port'])
+    hookenv.close_port(local_state['cc_port'])
 
 
 @hooks.hook('db-relation-changed')
@@ -189,7 +192,7 @@ def router_relation_departed():
 config_data = hookenv.config()
 hook_name = os.path.basename(sys.argv[0])
 local_state = State('local_state.pickle')
-CC_PACKAGES = ['cfcloudcontroller', 'cfcloudcontrollerjob']
+CC_PACKAGES = ['cfcloudcontroller', 'cfcloudcontrollerjob', 'runit']
 
 CF_DIR = '/var/lib/cloudfoundry'
 CC_DIR = '{}/cfcloudcontroller'.format(CF_DIR)

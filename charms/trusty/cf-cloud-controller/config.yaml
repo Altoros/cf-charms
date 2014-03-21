@@ -3,6 +3,10 @@ options:
     type: string
     default: "example.net"   
     description: "Router domain name. Currently we use xip.io service to resolve local IP's."
+  cc_port:
+    type: int
+    default: 9022
+    description: "Cloud controller external port. Not used whith Nginx"
   nginx_port:
     type: int
     default: 9022

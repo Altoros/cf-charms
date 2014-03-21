@@ -1,7 +1,7 @@
 ---
 # TODO cc_ip cc public ip 
 local_route: {{ cc_ip }}
-port: 9022 # actually it ignored due to using of nginx
+port: {{ cc_port }} 
 pid_filename: /var/vcap/sys/run/cloud_controller_ng/cloud_controller_ng.pid
 development_mode: false
 
@@ -27,7 +27,7 @@ bulk_api:
   auth_password: "Password"
 
 nginx:
-  use_nginx: true
+  use_nginx: false
   instance_socket: "/var/vcap/sys/run/cloud_controller_ng/cloud_controller.sock"
 
 index: 1
