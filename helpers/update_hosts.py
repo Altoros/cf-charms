@@ -3,6 +3,7 @@
 import os
 import yaml
 import subprocess
+import socket
 
 # try to use import shlex
 
@@ -12,8 +13,12 @@ def run_via_ssh(ssh_prefix, command):
     subprocess.call(command, shell=True)
 
 
-def service_address(service):
+def service_host(service):
     return service['units'].values()[0]['public-address']
+
+def service_ip(service):
+    return socket.gethostbyname(service_host(service))
+
 
 def generate_add_host_command(host):
     return "sudo echo \'%s\' >> /etc/hosts" % host
@@ -28,9 +33,11 @@ services = juju_status['services']
 if not router_service_name in services:
     print 'Router not found'
     exit(1)
-router_public_address = service_address(services[router_service_name])
+
+router_public_ip = service_ip(services[router_service_name])
+
 domain = 'example.net'
-host_item = "%s api.%s uaa.%s" % (router_public_address, domain, domain)
+host_item = "%s api.%s uaa.%s" % (router_public_ip, domain, domain)
 
 hosts_config = ["127.0.0.1 localhost",
                 "::1 ip6-localhost ip6-loopback",
