@@ -5,7 +5,6 @@ import sys
 import yaml
 import subprocess
 
-
 def juju_set_domain(service_name, domen_value):
     command = "juju set %s domain=%s" % (service_name, domen_value)
     print command
@@ -27,8 +26,10 @@ if not router_service_name in services:
     print 'Router not found'
     exit(1)
 
-
-router_domain = service_public_address(services[router_service_name])
+if not sys.argv[1:]:
+    router_domain = service_public_address(services[router_service_name])
+else:
+    router_domain = sys.argv[1:][0]
 
 print 'Router domain is: %s' % router_domain
 

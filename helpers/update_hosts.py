@@ -8,21 +8,35 @@ import socket
 # try to use import shlex
 
 def run_via_ssh(ssh_prefix, command):
-    command = '%s "%s"' % (ssh_prefix, command)
+    if command.find('"') > 0:
+        print ("WARNING: command %s hould not contain " 
+               "double quotes.") % command
+    command = '%s "%s" > /dev/null 2>&1' % (ssh_prefix, command)
     #print command
     subprocess.call(command, shell=True)
 
+def first_unit_of(service):
+    try:
+        return service['units'].values()[0]
+    except:
+        print "Can't find units in %s" % service
 
 def service_host(service):
-    return service['units'].values()[0]['public-address']
+    try:
+        return first_unit_of(service)['public-address']
+    except:
+        print "Can't find public-address in %s" % service
 
-def service_ip(service):
+def service_ip_address(service):
     return socket.gethostbyname(service_host(service))
 
 
 def generate_add_host_command(host):
     return "sudo echo \'%s\' >> /etc/hosts" % host
 
+
+def has_errors(service):
+    return first_unit_of(service)['agent-state'] == 'error'
 
 juju_status_yaml = subprocess.check_output(['juju', 'status'])
 juju_status = yaml.load(juju_status_yaml)
@@ -34,7 +48,7 @@ if not router_service_name in services:
     print 'Router not found'
     exit(1)
 
-router_public_ip = service_ip(services[router_service_name])
+router_public_ip = service_ip_address(services[router_service_name])
 
 domain = 'example.net'
 host_item = "%s api.%s uaa.%s" % (router_public_ip, domain, domain)
@@ -49,7 +63,12 @@ hosts_config = ["127.0.0.1 localhost",
                 host_item]
 
 for service in services.values():
-    service_ip = service_address(service)
+    
+    if has_errors(service):
+        print 'Service {} has errors.'.format(service)
+        continue
+
+    service_ip = service_ip_address(service)
     print 'Processing machine {}'.format(service_ip)
 
     allow_access_to_hosts = ("sudo chown ubuntu /etc/hosts && " 
