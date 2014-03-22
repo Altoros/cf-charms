@@ -1,0 +1,49 @@
+#!/bin/bash -e
+
+export PATH=/var/vcap/packages/ruby/bin:$PATH
+RUN_DIR=/var/vcap/sys/run/dea_next
+LOG_DIR=/var/vcap/sys/log/dea_next
+PIDFILE=$RUN_DIR/dea_next.pid
+JOB_DIR=/var/lib/cloudfoundry/cfdea
+DATA_DIR=/var/vcap/data/dea_next
+
+export TMPDIR=/var/vcap/data/dea_next/tmp
+
+source /var/lib/cloudfoundry/cfdea/jobs/bin/utils.sh
+
+case $1 in
+
+  start)
+    pid_guard $PIDFILE "DEA"
+
+    mkdir -p $RUN_DIR
+    mkdir -p $LOG_DIR
+    mkdir -p $DATA_DIR
+    mkdir -p $TMPDIR
+
+    echo $$ > $PIDFILE
+
+    # Configure the core file location
+    mkdir -p /var/vcap/sys/cores
+    chown vcap:vcap /var/vcap/sys/cores
+    echo /var/vcap/sys/cores/core-%e-%s-%p-%t > /proc/sys/kernel/core_pattern
+
+    ulimit -c unlimited
+
+    
+    cd $JOB_DIR
+    ruby bin/dea $JOB_DIR/config/dea.yml 
+
+    ;;
+
+  stop)
+    kill_and_wait $PIDFILE 40
+
+    ;;
+
+  *)
+    echo "Usage: dea_ctl {start|stop}"
+
+    ;;
+
+esac

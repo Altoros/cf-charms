@@ -48,9 +48,12 @@ if not router_service_name in services:
     print 'Router not found'
     exit(1)
 
-router_public_ip = service_ip_address(services[router_service_name])
+# router_public_ip = service_ip_address(services[router_service_name])
 
-domain = 'example.net'
+router_public_ip = '10.0.0.28'
+
+domain = 'juju-azure-jfpubcimhe.cloudapp.net'
+
 host_item = "%s api.%s uaa.%s" % (router_public_ip, domain, domain)
 
 hosts_config = ["127.0.0.1 localhost",
