@@ -129,8 +129,8 @@ config_data = hookenv.config()
 hook_name = os.path.basename(sys.argv[0])
 #TODO replace with actual dea package
 DEA_PACKAGES = ['g++', 'make', 'git', 'ruby1.9.1-dev', 'libxslt-dev',
-                'debootstrap' 'quota', 'libxml2-dev', 'cfwarden',
-                'cfdea', 'cfdeajob', 'cfrootfs', 'cfbuilpackcache']
+                'debootstrap', 'quota', 'libxml2-dev', 'cfwarden',
+                'cfdea', 'cfdeajob', 'cfrootfs', 'cfbuildpackcache']
 
 CF_DIR = '/var/lib/cloudfoundry'
 DEA_DIR = os.path.join(CF_DIR, 'cfdea')
