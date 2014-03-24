@@ -9,7 +9,8 @@ lint:
 clean:
 	find . -name '*.pyc' -delete
 	find . -name '*.bak' -delete
-run:
+run: uh lint deploy
+deploy:
 ifdef m
 	juju deploy --to $(m) --repository=../../. local:trusty/cf-cloud-controller cc --show-log
 else
@@ -19,3 +20,5 @@ log:
 	tail -f ~/.juju/local/log/unit-cc-0.log
 destroy:
 	juju destroy-service cc
+uh:
+	../../../helpers/update_helpers.py

@@ -9,7 +9,7 @@ lint:
 clean:
 	find . -name '*.pyc' -delete
 	find . -name '*.bak' -delete
-run: lint deploy
+run: uh lint deploy
 log:
 	tail -f ~/.juju/local/log/unit-nats-0.log
 deploy:
@@ -19,5 +19,7 @@ ifdef m
 else
 	juju deploy --repository=../../. local:trusty/cf-nats nats --show-log
 endif
+uh:
+	../../../helpers/update_helpers.py
 upgrade:
 	juju upgrade-charm --repository=../../. nats --show-log

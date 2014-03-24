@@ -27,7 +27,3 @@ uh:
 	../../../helpers/update_helpers.py
 upgrade:
 	juju upgrade-charm --repository=../../. dea --show-log
-js:
-	juju status
-jss:
-	juju status dea
