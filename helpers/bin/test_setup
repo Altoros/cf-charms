@@ -1,11 +1,18 @@
 #!/bin/bash
-set -xe
 
-dpkg -s python-virtualenv
+dpkg -s python-virtualenv &>/dev/null
 if [ $? != 0 ]; then
     sudo apt-get install python-virtualenv
 fi
 
-virtualenv --system-site-packages .venv
-. .venv/bin/activate
-pip install -r test-requirements.txt
+dpkg -s libapt-pkg-dev &>/dev/null
+if [ $? != 0 ]; then
+    sudo apt-get install libapt-pkg-dev
+fi
+
+
+if [ ! -d .venv ]; then
+    virtualenv --system-site-packages .venv
+    . .venv/bin/activate
+    pip install -r test-requirements.txt
+fi
