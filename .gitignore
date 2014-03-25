@@ -8,4 +8,6 @@ azure.err
 
 charms/trusty/cf-dea/files/stemcells/
 .venv
+cover
+.coverage
 
