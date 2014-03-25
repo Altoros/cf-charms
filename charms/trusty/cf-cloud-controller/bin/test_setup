@@ -1,11 +1,11 @@
 #!/bin/bash
-set -xe
+set -x
 
 dpkg -s python-virtualenv
 if [ $? != 0 ]; then
     sudo apt-get install python-virtualenv
 fi
 
-virtualenv .venv
+virtualenv --system-site-packages .venv
 . .venv/bin/activate
 pip install -r test-requirements.txt

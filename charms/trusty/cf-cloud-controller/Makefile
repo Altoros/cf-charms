@@ -5,7 +5,7 @@ test: lint test_setup
 	./bin/nosetests
 
 test_setup:
-	sudo apt-get install libapt-pkg-dev
+	sudo apt-get install libapt-pkg-dev python-apt
 	./bin/test_setup	
 
 lint:
