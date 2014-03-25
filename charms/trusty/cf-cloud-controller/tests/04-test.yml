@@ -1,0 +1,13 @@
+cf-db-test:
+  series: trusty
+  services:
+    cloud-controller:
+      charm: cf-cloud-controller
+    nats:
+      charm: cf-nats
+    postgresql:
+      charm: cs:precise/postgresql
+  relations:
+    - ["cloud-controller:db", "postgresql:db"]
+    - [cloud-controller, nats]
+
