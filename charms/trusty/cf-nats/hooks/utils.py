@@ -1,20 +1,31 @@
-from charmhelpers.fetch import (
-    apt_install,
-    filter_installed_packages
-)
+import os
+import string
+import random
+import yaml
 
-TEMPLATES_DIR = 'templates'
-
-try:
-    import jinja2
-except ImportError:
-    apt_install(filter_installed_packages(['python-jinja2']),
-                fatal=True)
-    import jinja2
+from charmhelpers.core import host
 
 
-def render_template(template_name, context, template_dir=TEMPLATES_DIR):
-    templates = jinja2.Environment(
-        loader=jinja2.FileSystemLoader(template_dir))
-    template = templates.get_template(template_name)
-    return template.render(context)
+NATS_CONF_PATH = "/etc/nats.yml"
+
+
+def get_nats_config(nats_conf_path=NATS_CONF_PATH):
+    if not os.path.exists(nats_conf_path):
+        generate_nats_config(nats_conf_path)
+    with open(nats_conf_path) as fh:
+        data = yaml.safe_load(fh.read())
+    data['nats_port'] = 4022
+    return data
+
+
+def generate_nats_config(conf_path):
+    user = "".join(random.sample(string.letters, 10))
+    password = "".join(random.sample(string.letters, 10))
+    nats_data = {
+        'net': '0.0.0.0',
+        'port': 4222,
+        'logtime': True,
+        'authorization': {
+            'user': user, 'password': password}}
+    host.write_file(
+        conf_path, yaml.safe_dump(nats_data), perms=0400)

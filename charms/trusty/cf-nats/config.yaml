@@ -1,21 +1,4 @@
 options:
-  domain: 
-    type: string
-    # TODO don't forget add resolution example.net to router ip into /etc/hosts
-    default: "example.net"   
-    description: "Router domain name. Currently we use xip.io service to resolve local IP's."
-  nats_port:
-    type: int
-    default: 4022
-    description: "External NAT port"
-  nats_user:
-    type: string
-    default: "nats"
-    description: "NATS require authentication. User name"
-  nats_password:
-    type: string
-    default: "changemeplease"
-    description: "NATS require authentication. Password"
   source:
     type: string
     default: 'ppa:cf-charm/ppa'
@@ -32,10 +15,3 @@ options:
       Note that a minimum ceph version of 0.48.2 is required for use with this
       charm which is NOT provided by the packages in the main Ubuntu archive
       for precise but is provided in the Folsom cloud archive.
-  key:
-    type: string
-    default: '4C430C3C2828E07D'
-    description: |
-      Key ID to import to the apt keyring to support use with arbitary source
-      configuration from outside of Launchpad archives or PPA's.
-

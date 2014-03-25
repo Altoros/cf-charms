@@ -3,206 +3,80 @@
 
 import sys
 import os
-import pwd
-import grp
-
 import subprocess
-import glob
-import shutil
-import cPickle as pickle
-
 
 from charmhelpers.core import hookenv, host
-from charmhelpers.core.hookenv import log, DEBUG, ERROR
-#from charmhelpers.payload.execd import execd_preinstall
+from charmhelpers.core.hookenv import log
+from charmhelpers.fetch import apt_install, apt_update, add_source
 
-from charmhelpers.fetch import (
-    apt_install, apt_update, add_source, filter_installed_packages
-)
-from utils import render_template
+from utils import get_nats_config
 
 
 hooks = hookenv.Hooks()
 
-
-class State(dict):
-    """Encapsulate state common to the unit for republishing to relations."""
-    def __init__(self, state_file):
-        super(State, self).__init__()
-        self._state_file = state_file
-        self.load()
-
-    def load(self):
-        '''Load stored state from local disk.'''
-        if os.path.exists(self._state_file):
-            state = pickle.load(open(self._state_file, 'rb'))
-        else:
-            state = {}
-        self.clear()
-
-        self.update(state)
-
-    def save(self):
-        '''Store state to local disk.'''
-        state = {}
-        state.update(self)
-        pickle.dump(state, open(self._state_file, 'wb'))
+CHARM_DIR = os.environ['CHARM_DIR']
 
 
-def install_upstart_scripts():
-    for x in glob.glob('files/upstart/*.conf'):
-        print 'Installing upstart job:', x
-        shutil.copy(x, '/etc/init/')
+def install_files():
+    subprocess.check_call(
+        "/usr/bin/install", "-o", "vcap", "-g", "vcap", "-m", "0400",
+        os.path.join(CHARM_DIR, "files", "upstart", "cf-nats.conf"),
+        "/etc/init/nats.conf")
 
-
-def run(command, exit_on_error=True, quiet=False):
-    '''Run a command and return the output.'''
-    if not quiet:
-        log("Running {!r}".format(command), DEBUG)
-    p = subprocess.Popen(
-        command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-        shell=isinstance(command, basestring))
-    p.stdin.close()
-    lines = []
-    for line in p.stdout:
-        if line:
-            if not quiet:
-                print line
-            lines.append(line)
-        elif p.poll() is not None:
-            break
-
-    p.wait()
-
-    if p.returncode == 0:
-        return '\n'.join(lines)
-
-    if p.returncode != 0 and exit_on_error:
-        log("ERROR: {}".format(p.returncode), ERROR)
-        sys.exit(p.returncode)
-
-    raise subprocess.CalledProcessError(
-        p.returncode, command, '\n'.join(lines))
-
-
-def emit_natsconf():
-    natscontext = {
-        'nats_port': local_state['nats_port'],
-        'nats_user': local_state['nats_user'],
-        'nats_password': local_state['nats_password'],
-        'nats_address': local_state['nats_address'],
-    }
-    with open(NATS_CONFIG_FILE, 'w') as natsconf:
-        natsconf.write(render_template('nats.yml', natscontext))
-
-
-def chownr(path, owner, group):
-    uid = pwd.getpwnam(owner).pw_uid
-    gid = grp.getgrnam(group).gr_gid
-    for root, dirs, files in os.walk(path):
-        for momo in dirs:
-            os.chown(os.path.join(root, momo), uid, gid)
-            for momo in files:
-                os.chown(os.path.join(root, momo), uid, gid)
+    # The package bin is borken (doesn't accept cli params)
+    subprocess.check_call(
+        "/usr/bin/install", "-o", "vcap", "-g", "vcap", "-m", "0555",
+        os.path.join(CHARM_DIR, "files", "nats-server"),
+        "/usr/bin/nats-server")
 
 
 @hooks.hook()
 def install():
-    add_source(config_data['source'], config_data['key'])
+    conf = hookenv.config()
+    add_source(conf['source'], conf['key'])
     apt_update(fatal=True)
-    apt_install(packages=filter_installed_packages(NATS_PACKAGES), fatal=True)
+    apt_install(packages=NATS_PACKAGES, fatal=True)
     host.adduser('vcap')
-    dirs = [NATS_RUN_DIR, NATS_LOG_DIR]
-    for item in dirs:
-        host.mkdir(item, owner='vcap', group='vcap', perms=0775)
-    chownr('/var/vcap', owner='vcap', group='vcap')
-    chownr(CF_DIR, owner='vcap', group='vcap')
-    install_upstart_scripts()
-    if 'nats_address' in local_state:
-        local_state['nats_address'] = hookenv.unit_private_ip()
-    else:
-        local_state.setdefault('nats_address', hookenv.unit_private_ip())
-    local_state.save()
+    install_files()
 
 
 @hooks.hook()
 def start():
     log("Starting NATS as upstart job")
-    host.service_start('cf-nats')
+    if not host.service_running('nats'):
+        host.service_start('nats')
 
 
 @hooks.hook("config-changed")
 def config_changed():
-    if 'nats_port' in local_state:
-        if local_state['nats_port'] != config_data['nats_port']:
-            hookenv.close_port(local_state['nats_port'])
-            local_state['nats_port'] = config_data['nats_port']
-    else:
-        local_state.setdefault('nats_port', config_data['nats_port'])
-    if not 'nats_user' in local_state:
-        local_state.setdefault('nats_user', config_data['nats_user'])
-    else:
-        local_state['nats_user'] = config_data['nats_user']
-    if not 'nats_password' in local_state:
-        local_state.setdefault('nats_password', config_data['nats_password'])
-    else:
-        local_state['nats_password'] = config_data['nats_password']
-    local_state.save()
-    emit_natsconf()
-    hookenv.open_port(local_state['nats_port'])
-    if host.service_running('cf-nats'):
-        host.service_restart('cf-nats')
+    # There are no real config options
+    get_nats_config()
+    if host.service_running('nats'):
+        host.service_restart('nats')
 
 
 @hooks.hook()
 def stop():
-    host.service_stop('cf-nats')
-    hookenv.close_port(local_state['nats_port'])
+    if host.service_running('nats'):
+        host.service_stop('nats')
 
 
 @hooks.hook('nats-relation-changed')
 def nats_relation_changed():
-    for relid in hookenv.relation_ids('nats'):
-        log('NATS address:' + local_state['nats_address'] + ':'
-            + str(local_state['nats_port']), DEBUG)
-        log('NATS user:' + local_state['nats_user'] + ':'
-            + str(local_state['nats_password']), DEBUG)
-        hookenv.relation_set(relid,
-                             nats_address=local_state['nats_address'],
-                             nats_port=local_state['nats_port'],
-                             nats_user=local_state['nats_user'],
-                             nats_password=local_state['nats_password'],
-                             )
-
-
-@hooks.hook('nats-relation-joined')
-def nats_relation_joined():
-    log('Hi from joined hook')
-
-
-@hooks.hook('nats-relation-broken')
-def nats_relation_broken():
-    log('Hi from broken hook')
-
+    nats_conf = get_nats_config()
+    address = hookenv.relation_get(
+        'private-address', os.environ['JUJU_UNIT_NAME'])
+    hookenv.relation_set(
+        nats_address=address,
+        nats_port=nats_conf['nats_port'],
+        nats_user=nats_conf['nats_user'],
+        nats_password=nats_conf['nats_password'])
 
 #################### Global variables ####################
-config_data = hookenv.config()
-hook_name = os.path.basename(sys.argv[0])
-#TODO replace with actual nats package
-NATS_PACKAGES = ['cfcloudcontroller', 'cfcloudcontrollerjob']
+NATS_PACKAGES = ['cfnats']
 
-CF_DIR = '/var/lib/cloudfoundry'
-NATS_RUN_DIR = '/var/vcap/sys/run/nats'
-NATS_LOG_DIR = '/var/vcap/sys/log/nats'
-NATS_CONFIG_FILE = os.path.join(CF_DIR,
-                                'cfcloudcontroller/jobs/config/nats.yml')
-local_state = State('local_state.pickle')
 
 if __name__ == '__main__':
     # Hook and context overview. The various replication and client
     # hooks interact in complex ways.
-    log("Running {} hook".format(hook_name))
-    if hookenv.relation_id():
-        log("Relation {} with {}".format(
-            hookenv.relation_id(), hookenv.remote_unit()))
     hooks.execute(sys.argv)
