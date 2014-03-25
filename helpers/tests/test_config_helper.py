@@ -30,7 +30,6 @@ class TestConfigHelper(unittest.TestCase):
         self.assertRegexpMatches(output,
                                  'srv_api_uri:\s*http://api.example.net')
 
-
     def test_emit_config_missing_key(self):
         self.assertFalse(emit_config(['foo', 'bar'],
                                      {'foo': True},
