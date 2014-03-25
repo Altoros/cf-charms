@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os
+import sys
 import yaml
 import subprocess
 import socket

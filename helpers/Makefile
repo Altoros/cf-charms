@@ -12,4 +12,11 @@ lint:
 	@flake8 --exclude .venv .
 
 
+coverage:
+	./bin/nosetests --with-coverage --cover-html --cover-html-dir=cover
+	xdg-open cover/index.html
+
+clean:
+	rm -rf cover .venv
+
 
