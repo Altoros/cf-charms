@@ -1,7 +1,12 @@
 CHARM_DIR := $(shell pwd)
 TEST_TIMEOUT := 900
 
-test: lint 
+test: lint test_setup
+	./bin/nosetests
+
+test_setup:
+	sudo apt-get install libapt-pkg-dev
+	./bin/test_setup	
 
 lint:
 	@echo "Lint check (flake8)"

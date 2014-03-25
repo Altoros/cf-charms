@@ -1,16 +1,6 @@
-from charmhelpers.fetch import (
-    apt_install,
-    filter_installed_packages
-)
+import jinja2
 
 TEMPLATES_DIR = 'templates'
-
-try:
-    import jinja2
-except ImportError:
-    apt_install(filter_installed_packages(['python-jinja2']),
-                fatal=True)
-    import jinja2
 
 
 def render_template(template_name, context, template_dir=TEMPLATES_DIR):

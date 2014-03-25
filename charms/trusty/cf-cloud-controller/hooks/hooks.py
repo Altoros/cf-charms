@@ -3,7 +3,7 @@
 
 import os
 import sys
-from helpers.config_helper import find_config_parameter, emit_config
+from helpers.config_helper import emit_config
 from helpers.upstart_helper import install_upstart_scripts
 from helpers.state import State
 from helpers.common import chownr, run
@@ -93,7 +93,10 @@ def install():
 
 
 @hooks.hook("config-changed")
-def config_changed():
+def config_changed(config_data=None):
+    if config_data is None:
+        config_data = hookenv.config()
+
     local_state['cloud_controller_ok'] = False
     local_state['ccdbmigrated'] = False
 
@@ -101,9 +104,8 @@ def config_changed():
                     'domain', 'default_organization', 'nginx_port', 'cc_port']
 
     for key in config_items:
-        value = find_config_parameter(key, hookenv, config_data)
+        value = local_state[key] = config_data[key]
         log(("%s = %s" % (key, value)), DEBUG)
-        local_state[key] = value
 
     local_state['cc_ip'] = hookenv.unit_private_ip()
     local_state.save()
@@ -192,7 +194,7 @@ def router_relation_departed():
 config_data = hookenv.config()
 hook_name = os.path.basename(sys.argv[0])
 local_state = State('local_state.pickle')
-CC_PACKAGES = ['cfcloudcontroller', 'cfcloudcontrollerjob', 'runit']
+CC_PACKAGES = ['cfcloudcontroller', 'cfcloudcontrollerjob', 'runit', 'jinja2']
 
 CF_DIR = '/var/lib/cloudfoundry'
 CC_DIR = '{}/cfcloudcontroller'.format(CF_DIR)

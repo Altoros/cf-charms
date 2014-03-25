@@ -3,14 +3,6 @@ from utils import render_template
 from charmhelpers.core.hookenv import log, WARNING
 
 
-def find_config_parameter(key, relation_environment, config_data):
-    value = relation_environment.relation_get(key)
-    if value is None and key in config_data:
-        value = config_data[key]
-    log('Try to find parameter: %s = %s' % (key, value))
-    return value
-
-
 def emit_config(module_name, config_items, local_state,
                 template_config_file, target_config_file):
     log('Try to emit %s config' % module_name)
@@ -30,7 +22,7 @@ def emit_config(module_name, config_items, local_state,
     local_state.save
 
     if success:
-        log('Emited %s config successfully.' % module_name)
+       log('Emited %s config successfully.' % module_name)
         config_text = render_template(template_config_file, config_context)
         log("%s config text: " % module_name)
         log(config_text)
