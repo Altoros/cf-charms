@@ -3,6 +3,7 @@ cf-db-test:
   services:
     cloud-controller:
       charm: cf-cloud-controller
+      expose: true
     nats:
       charm: cf-nats
     postgresql:

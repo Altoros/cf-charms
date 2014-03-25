@@ -5,16 +5,19 @@ echo "setting up charm dir for test" $repo
 
 function on_exit()
 {
+    echo "Called"
     rm -Rf $repo
     rm -Rf cf-charms
 }
 
-#trap on_exit EXIT
+trap on_exit EXIT
 
 mkdir -p $repo/trusty
 
 echo "Checking out cf charms"
-git clone https://github.com/Altoros/cf-charms.git && cd cf-charms && git checkout dev
+git clone https://github.com/Altoros/cf-charms.git 
+cd cf-charms && git checkout dev && cd ..
+
 cp -Rf cf-charms/charms/trusty/* $repo/trusty
 
 # Use current/branch dir of cloud-controller-charm
@@ -25,8 +28,7 @@ echo "Deploying cf"
 export JUJU_REPOSITORY=$repo
 juju-deployer -vdWc tests/04-test.yml
 
-juju status
-env | grep JUJU
+
 echo "Verifying deployment"
-wget http://`juju-deployer -f cloud-controller`/info
+wget http://`juju-deployer -f cloud-controller`:9022/info
 
