@@ -1,34 +1,23 @@
-from utils import render_template
-# from charmhelpers.core.hookenv import log, DEBUG, ERROR, WARNING
-from charmhelpers.core.hookenv import log, WARNING
+import jinja2
+
+TEMPLATES_DIR = 'templates'
 
 
-def emit_config(module_name, config_items, local_state,
-                template_config_file, target_config_file):
-    log('Try to emit %s config' % module_name)
+def render_template(template_name, context, template_dir=TEMPLATES_DIR):
+    templates = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(template_dir))
+    template = templates.get_template(template_name)
+    return template.render(context)
 
-    config_context = {}
-    success = True
 
-    for key in config_items:
-        log('extract %s from local_state. '
-            '%s = %s' % (key, key, local_state[key]))
-        if local_state[key] is not None:
-            config_context[key] = local_state[key]
-        else:
-            success = False
-
-    local_state[module_name + '_ok'] = success
-    local_state.save
+def emit_config(config_items, context,
+                template_config_file, target_config_file,
+                template_dir=TEMPLATES_DIR):
+    success = not bool(set(config_items).difference(set(context.keys())))
 
     if success:
-       log('Emited %s config successfully.' % module_name)
-        config_text = render_template(template_config_file, config_context)
-        log("%s config text: " % module_name)
-        log(config_text)
+        config_text = render_template(template_config_file, context,
+                                      template_dir=template_dir)
         with open(target_config_file, 'w') as config_file:
             config_file.write(config_text)
-    else:
-        log('Emit %s config unsuccessfull' % module_name, WARNING)
-
     return success
