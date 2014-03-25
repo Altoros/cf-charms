@@ -49,15 +49,19 @@ def install():
     #run(['gem', 'install', 'bundle', 'eventmachine'])
     #run(['gem', 'install', 'bundle'])
     #run(['git', 'clone', 'https://github.com/cloudfoundry/dea_ng.git'])
-    dirs = [DEA_PIDS_DIR, DEA_CACHE_DIR, DEA_BP_CACHE_DIR]
+    dirs = [DEA_PIDS_DIR, DEA_CACHE_DIR, DEA_BP_CACHE_DIR, WARDEN_SOCKET_PATH, 
+            WARDEN_LOG_PATH, WARDEN_CONTAINER_DEPOT_PATH, WARDEN_CONTAINER_ROOTFS_PATH]
     for item in dirs:
         host.mkdir(item, owner='vcap', group='vcap', perms=0775)
     os.chdir(DEA_DIR)
     #run(['git', 'submodule', 'update', '--init'])
     #run(['bundle', 'install', '--without', 'test'])
-    chownr(CF_DIR, 'vcap', 'vcap')
+    # chownr(CF_DIR, 'vcap', 'vcap')
     for x in glob.glob(charm_dir() + '/files/bin/*'):
         shutil.copy(x, os.path.join(DEA_DIR, 'jobs', 'bin'))
+
+    os.system("sudo tar xvf %s/files/stemcells/image.tgz "
+        "-C /var/vcap/packages/rootfs_lucid64" % (charm_dir()))
 
     # install warden
     os.chdir(WARDEN_DIR)
@@ -130,7 +134,7 @@ hook_name = os.path.basename(sys.argv[0])
 #TODO replace with actual dea package
 DEA_PACKAGES = ['g++', 'make', 'git', 'ruby1.9.1-dev', 'libxslt-dev',
                 'debootstrap', 'quota', 'libxml2-dev', 'cfwarden',
-                'cfdea', 'cfdeajob', 'cfrootfs', 'cfbuildpackcache']
+                'cfdea', 'cfdeajob', 'cfbuildpackcache']
 
 CF_DIR = '/var/lib/cloudfoundry'
 DEA_DIR = os.path.join(CF_DIR, 'cfdea')
@@ -141,6 +145,14 @@ DEA_BP_CACHE_DIR = os.path.join(DEA_DIR, 'buildpack_cache')
 DEA_CONFIG_PATH = os.path.join(DEA_DIR, 'config', 'dea.yml')
 WARDEN_CONFIG_PATH = os.path.join(WARDEN_DIR, 'config', 'warden.yml')
 local_state = State('local_state.pickle')
+
+WARDEN_CONTAINER_ROOTFS_PATH = '/var/vcap/packages/rootfs_lucid64'
+WARDEN_CONTAINER_DEPOT_PATH = '/var/vcap/data/warden/depot'
+WARDEN_LOG_PATH = '/var/vcap/sys/log/warden/'
+# WARDEN_PIDFILE_PATH = '/var/vcap/sys/run/warden/'
+WARDEN_SOCKET_PATH = '/var/vcap/data/warden/'
+
+
 
 if __name__ == '__main__':
     # Hook and context overview. The various replication and client

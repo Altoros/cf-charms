@@ -8,7 +8,7 @@ server:
   pidfile: /var/vcap/sys/run/warden/warden.pid
   quota:
     # disk_quota_enabled: <%= p("disk_quota_enabled") %>
-    disk_quota_enabled: false
+    disk_quota_enabled: false  # TODO should be changed 
 
 logging:
   file: /var/vcap/sys/log/warden/warden.log
@@ -24,7 +24,7 @@ network:
   # Interface MTU size
   # (for OpenStack use 1454 to avoid problems with rubygems with GRE tunneling)
   # mtu: <%= p("dea_next.mtu") %>
-  mtu: 1454
+  mtu: 1454  # TODO should be changed 
 
 user:
   pool_start_uid: 20000
