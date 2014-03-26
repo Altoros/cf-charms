@@ -1,6 +1,7 @@
+import os
 from utils import render_template
 # from charmhelpers.core.hookenv import log, DEBUG, ERROR, WARNING
-from charmhelpers.core.hookenv import log, WARNING
+from charmhelpers.core.hookenv import log, WARNING, charm_dir
 
 
 def find_config_parameter(key, relation_environment, config_data):
@@ -31,7 +32,9 @@ def emit_config(module_name, config_items, local_state,
 
     if success:
         log('Emited %s config successfully.' % module_name)
-        config_text = render_template(template_config_file, config_context)
+        template_dir = os.path.join(charm_dir(), 'templates')
+        config_text = render_template(template_config_file,
+                                      config_context, template_dir)
         log("%s config text: " % module_name)
         log(config_text)
         with open(target_config_file, 'w') as config_file:

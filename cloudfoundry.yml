@@ -1,0 +1,33 @@
+
+cloudfoundry-base:
+  series: trusty
+  services:
+    nats:
+      charm: cf-nats
+      constraints: arch=amd64
+      options:
+        domain: example.com
+        nats_password: changeme
+    cloud-controller:
+      charm: cf-cloud-controller
+      constraints: arch=amd64
+      options:
+        domain: example.com
+    dea:
+      charm: cf-dea
+      constraints: arch=amd64
+      options:
+        domain: example.com
+    uaa:
+      charm: cf-uaa
+      constraints: arch=amd64
+      options:
+        domain: example.com
+    router:
+      charm: cf-go-router
+      constraints: arch=amd64
+      options:
+        domain: example.com
+  relations:
+    - [nats, [cloud-controller, uaa, router, dea]]
+

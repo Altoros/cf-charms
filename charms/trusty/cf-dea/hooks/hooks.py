@@ -6,16 +6,15 @@ import sys
 import glob
 import shutil
 from charmhelpers.core import hookenv, host
-from charmhelpers.core.hookenv import log, charm_dir
+from charmhelpers.core.hookenv import log, charm_dir, DEBUG
 
 from charmhelpers.fetch import (
     apt_install, apt_update, add_source, filter_installed_packages
 )
 # from utils import render_template
 
-from helpers.config_helper import emit_config
+from helpers.config_helper import emit_config, find_config_parameter
 from helpers.upstart_helper import install_upstart_scripts
-from helpers.common import chownr
 from helpers.state import State
 
 hooks = hookenv.Hooks()
@@ -36,65 +35,74 @@ def emit_dea_config():
                 'dea.yml', DEA_CONFIG_PATH)
 
 
+def setup_warden():
+    emit_warden_config()
+    os.system('sudo bundle exec rake setup[%s]' % (WARDEN_CONFIG_PATH))
+
+
 @hooks.hook()
 def install():
     add_source(config_data['source'], config_data['key'])
     apt_update(fatal=True)
     apt_install(packages=filter_installed_packages(DEA_PACKAGES), fatal=True)
     install_upstart_scripts()
-    emit_warden_config()
     host.adduser('vcap')
     host.mkdir(CF_DIR, owner='vcap', group='vcap', perms=0775)
-    #os.chdir(CF_DIR)
-    #run(['gem', 'install', 'bundle', 'eventmachine'])
-    #run(['gem', 'install', 'bundle'])
-    #run(['git', 'clone', 'https://github.com/cloudfoundry/dea_ng.git'])
-    dirs = [DEA_PIDS_DIR, DEA_CACHE_DIR, DEA_BP_CACHE_DIR, WARDEN_SOCKET_PATH, 
-            WARDEN_LOG_PATH, WARDEN_CONTAINER_DEPOT_PATH, WARDEN_CONTAINER_ROOTFS_PATH]
+
+    dirs = [DEA_PIDS_DIR, DEA_CACHE_DIR, DEA_BP_CACHE_DIR, WARDEN_SOCKET_PATH,
+            WARDEN_LOG_PATH, WARDEN_CONTAINER_DEPOT_PATH,
+            WARDEN_CONTAINER_ROOTFS_PATH]
     for item in dirs:
         host.mkdir(item, owner='vcap', group='vcap', perms=0775)
     os.chdir(DEA_DIR)
-    #run(['git', 'submodule', 'update', '--init'])
-    #run(['bundle', 'install', '--without', 'test'])
-    # chownr(CF_DIR, 'vcap', 'vcap')
-    for x in glob.glob(charm_dir() + '/files/bin/*'):
-        shutil.copy(x, os.path.join(DEA_DIR, 'jobs', 'bin'))
 
-    os.system("sudo tar xvf %s/files/stemcells/image.tgz "
-        "-C /var/vcap/packages/rootfs_lucid64" % (charm_dir()))
+    for bin_file in glob.glob(charm_dir() + '/files/bin/*'):
+        shutil.copy(bin_file, os.path.join(DEA_DIR, 'jobs', 'bin'))
+
+    target_file = '%s/files/warden_stemcell_image.tgz' % charm_dir()
+
+    if os.path.isfile(target_file):
+        os.system("wget --output-file=%s %s"
+                  % (target_file, config_data['warden_image_url']))
+        os.system("sudo tar xvf %s/files/warden_stemcell_image.tgz "
+                  "-C /var/vcap/packages/rootfs_lucid64" % (charm_dir()))
 
     # install warden
     os.chdir(WARDEN_DIR)
     os.system('sudo bundle install --standalone '
               '--deployment --without=development test')
-    os.system('sudo bundle exec rake setup[config/linux.yml]')
-    os.system('sudo bundle exec rake warden:start[config/linux.yml]')
-    os.system('sudo bundle exec rake setup:bin')
 
-
-# /var/lib/cloudfoundry/cfdea/jobs
 
 @hooks.hook()
 def start():
-    if not host.service_running('cf-dea'):
+    if not host.service_running('cf-dea') and local_state['dea_ok']:
         log("Starting DEA as upstart job")
         host.service_start('cf-dea')
-    if not host.service_running('cf-warden'):
+    if not host.service_running('cf-warden') and local_state['warden_ok']:
         log("Starting Warden as upstart job")
         host.service_start('cf-warden')
 
 
 @hooks.hook("config-changed")
 def config_changed():
-    #port_config_changed('router_port')
-    local_state['domain'] = config_data['domain']
+    local_state['dea_ok'] = False
+    local_state['warden_ok'] = False
+
+    config_items = ['nats_user', 'nats_password', 'nats_port',
+                    'nats_address', 'domain']
+
+    for key in config_items:
+        value = find_config_parameter(key, hookenv, config_data)
+        log(("%s = %s" % (key, value)), DEBUG)
+        local_state[key] = value
+
     local_state.save()
+
     emit_dea_config()
-    emit_warden_config()
-    if local_state['dea_ok'] and host.service_running('cf-dea'):
-        #TODO replace with config reload
-        log("Restarting DEA")
-        host.service_restart('cf-dea')
+    setup_warden()
+
+    stop()
+    start()
 
 
 @hooks.hook()
@@ -103,7 +111,6 @@ def stop():
         host.service_stop('cf-dea')
     if host.service_running('cf-warden'):
         host.service_stop('cf-warden')
-#        hookenv.close_port(local_state['router_port'])
 
 
 @hooks.hook('nats-relation-changed')
@@ -151,7 +158,6 @@ WARDEN_CONTAINER_DEPOT_PATH = '/var/vcap/data/warden/depot'
 WARDEN_LOG_PATH = '/var/vcap/sys/log/warden/'
 # WARDEN_PIDFILE_PATH = '/var/vcap/sys/run/warden/'
 WARDEN_SOCKET_PATH = '/var/vcap/data/warden/'
-
 
 
 if __name__ == '__main__':
