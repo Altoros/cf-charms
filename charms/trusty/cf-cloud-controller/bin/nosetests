@@ -1,4 +1,3 @@
 #!/bin/bash
 . .venv/bin/activate
-cd hooks
-nosetests $@
+nosetests -w hooks $@

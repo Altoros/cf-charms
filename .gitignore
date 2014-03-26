@@ -10,4 +10,5 @@ charms/trusty/cf-dea/files/stemcells/
 .venv
 cover
 .coverage
+.nodeids
 
