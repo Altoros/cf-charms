@@ -10,9 +10,13 @@ current_folder = os.path.dirname(os.path.abspath(current_file))
 os.chdir(current_folder)
 
 charms_folders = glob.glob('../charms/trusty/*')
-helper_utils = ['update_helpers.py', 'update_hosts.py', 
+helper_utils = ['update_helpers.py', 'update_hosts.py',
                 'update_domain.py', 'azure/add-cf-ports.py']
 
+# XXX: we may want to replace this process with
+# a git submodule. The downside to that is that the charms
+# as pulled directly from github would need an additional step
+# to be complete
 for charm_folder in charms_folders:
     charm_helper_folder = os.path.join(charm_folder, 'hooks', 'helpers')
     if os.path.exists(charm_helper_folder):

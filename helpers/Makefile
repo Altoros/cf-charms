@@ -12,7 +12,7 @@ lint:
 
 
 coverage:
-	./bin/nosetests --with-coverage --cover-html --cover-html-dir=cover
+	./bin/nosetests --with-coverage --cover-html --cover-html-dir=cover --cover-package=helpers
 	xdg-open cover/index.html
 
 clean:
