@@ -1,5 +1,5 @@
 import os
-import cPickle as pickle
+import json
 
 
 class State(dict):
@@ -11,10 +11,11 @@ class State(dict):
 
     def load(self):
         '''Load stored state from local disk.'''
+        state = {}
         if os.path.exists(self._state_file):
-            state = pickle.load(open(self._state_file, 'rb'))
-        else:
-            state = {}
+            data = open(self._state_file, 'r').read()
+            if data:
+                state = json.loads(data)
         self.clear()
 
         self.update(state)
@@ -23,4 +24,4 @@ class State(dict):
         '''Store state to local disk.'''
         state = {}
         state.update(self)
-        pickle.dump(state, open(self._state_file, 'wb'))
+        json.dump(state, open(self._state_file, 'wb'), indent=2)

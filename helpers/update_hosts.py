@@ -1,19 +1,19 @@
 #!/usr/bin/env python
 
-import sys
-import yaml
-import subprocess
 import socket
-
+import subprocess
+import yaml
 # try to use import shlex
+
 
 def run_via_ssh(ssh_prefix, command):
     if command.find('"') > 0:
-        print ("WARNING: command %s hould not contain " 
+        print ("WARNING: command %s should not contain "
                "double quotes.") % command
     command = '%s "%s" > /dev/null 2>&1' % (ssh_prefix, command)
     #print command
     subprocess.call(command, shell=True)
+
 
 def first_unit_of(service):
     try:
@@ -21,11 +21,13 @@ def first_unit_of(service):
     except:
         print "Can't find units in %s" % service
 
+
 def service_host(service):
     try:
         return first_unit_of(service)['public-address']
     except:
         print "Can't find public-address in %s" % service
+
 
 def service_ip_address(service):
     return socket.gethostbyname(service_host(service))
@@ -38,55 +40,56 @@ def generate_add_host_command(host):
 def has_errors(service):
     return first_unit_of(service)['agent-state'] == 'error'
 
-juju_status_yaml = subprocess.check_output(['juju', 'status'])
-juju_status = yaml.load(juju_status_yaml)
 
-router_service_name = 'router'
-ssh_key_location = '~/.juju/ssh/juju_id_rsa'
-services = juju_status['services']
-if not router_service_name in services:
-    print 'Router not found'
-    exit(1)
+def main():
+    juju_status_yaml = subprocess.check_output(['juju', 'status'])
+    juju_status = yaml.load(juju_status_yaml)
 
-if not sys.argv[1:]:
-    router_public_ip = service_ip_address(services[router_service_name])
-else:
-    router_public_ip = sys.argv[1:][0]
+    router_service_name = 'router'
+    ssh_key_location = '~/.juju/ssh/juju_id_rsa'
+    services = juju_status['services']
+    if not router_service_name in services:
+        print 'Router not found'
+        exit(1)
 
-domain = 'example.net'
+    if not sys.argv[1:]:
+        router_public_ip = service_ip_address(services[router_service_name])
+    else:
+        router_public_ip = sys.argv[1:][0]
 
-host_item = "%s api.%s uaa.%s" % (router_public_ip, domain, domain)
+    domain = 'example.net'
 
-hosts_config = ["127.0.0.1 localhost",
-                "::1 ip6-localhost ip6-loopback",
-                "fe00::0 ip6-localnet",
-                "ff00::0 ip6-mcastprefix",
-                "ff02::1 ip6-allnodes",
-                "ff02::2 ip6-allrouters",
-                "ff02::3 ip6-allhosts",
-                host_item]
+    host_item = "%s api.%s uaa.%s" % (router_public_ip, domain, domain)
 
-for service in services.values():
-    
-    if has_errors(service):
-        print 'Service {} has errors.'.format(service)
-        continue
+    hosts_config = ["127.0.0.1 localhost",
+                    "::1 ip6-localhost ip6-loopback",
+                    "fe00::0 ip6-localnet",
+                    "ff00::0 ip6-mcastprefix",
+                    "ff02::1 ip6-allnodes",
+                    "ff02::2 ip6-allrouters",
+                    "ff02::3 ip6-allhosts",
+                    host_item]
 
-    service_ip = service_ip_address(service)
-    print 'Processing machine {}'.format(service_ip)
+    for service in services.values():
+        if has_errors(service):
+            print 'Service {} has errors.'.format(service)
+            continue
 
-    allow_access_to_hosts = ("sudo chown ubuntu /etc/hosts && " 
-                             "sudo chmod +w /etc/hosts && "
-                             "sudo echo '' > /etc/hosts")
-    
-    add_hosts = ' && '.join(map(generate_add_host_command, hosts_config))
+        service_ip = service_ip_address(service)
+        print 'Processing machine {}'.format(service_ip)
 
-    close_access_to_hosts = ("sudo chmod 644 /etc/hosts && " 
-                             "sudo chown root /etc/hosts")
+        allow_access_to_hosts = ("sudo chown ubuntu /etc/hosts && "
+                                "sudo chmod +w /etc/hosts && "
+                                "sudo echo '' > /etc/hosts")
+        add_hosts = ' && '.join(map(generate_add_host_command, hosts_config))
 
-    super_command = ' && '.join([allow_access_to_hosts, add_hosts, close_access_to_hosts])
+        close_access_to_hosts = ("sudo chmod 644 /etc/hosts && "
+                                "sudo chown root /etc/hosts")
 
-    ssh_prefix = "ssh -t -i %s ubuntu@%s" % (ssh_key_location, service_ip)
-    run_via_ssh(ssh_prefix, super_command)
+        super_command = ' && '.join([allow_access_to_hosts, add_hosts, close_access_to_hosts])
 
+        ssh_prefix = "ssh -t -i %s ubuntu@%s" % (ssh_key_location, service_ip)
+        run_via_ssh(ssh_prefix, super_command)
 
+if __name__ == '__main__':
+    main()

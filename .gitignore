@@ -5,7 +5,7 @@
 .juju*
 tmp
 azure.err
-
+.DS_Store
 charms/trusty/cf-dea/files/stemcells/
 .venv
 cover
