@@ -1,9 +1,14 @@
 options:
-  domain: 
+  domain:
     type: string
     # TODO don't forget add resolution example.net to router ip into /etc/hosts
     default: "example.net"   
     description: "Router domain name. Currently we use xip.io service to resolve local IP's."
+  warden_image_url: 
+    type: string
+    # TODO don't forget add resolution example.net to router ip into /etc/hosts
+    default: "http://bosh-jenkins-artifacts.s3.amazonaws.com/bosh-stemcell/aws/bosh-stemcell-2200-aws-xen-ubuntu.tgz"
+    description: "URL for Warden Image"
   source:
     type: string
     default: 'ppa:cf-charm/ppa'

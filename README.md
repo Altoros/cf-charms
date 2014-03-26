@@ -33,3 +33,14 @@ Every charm depend on one or more package. Packages are available on https://lau
         - UPI Support - the ability to find software that is running elsewhere. (UPI - User Provided Instance)
 * Support
     - No support
+
+
+# Deploying with juju deployer
+
+```
+sudo pip install juju-deployer
+export JUJU_REPOSITORY=/path/to/charms/directory
+juju set-constraints "arch=amd64"
+juju deployer -vdWc cloudfoundry.yml # v = verbose, d = debug, W = watch, c = configs (the yaml file)
+```
+
