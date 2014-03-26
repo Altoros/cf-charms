@@ -154,6 +154,7 @@ def db_relation_changed():
 @hooks.hook('nats-relation-changed')
 def nats_relation_changed():
     config_changed()
+    host.service_restart('cf-cloudcontroller')
 
 
 @hooks.hook('nats-relation-broken')
@@ -182,6 +183,7 @@ def router_relation_changed():
 @hooks.hook('router-relation-broken')
 def router_relation_broken():
     stop()
+    host.service_restart('cf-cloudcontroller')
 
 
 @hooks.hook('router-relation-departed')
