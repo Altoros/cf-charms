@@ -1,14 +1,14 @@
 import jinja2
-from charmhelpers.core.hookenv import log, WARNING, charm_dir
+#from charmhelpers.core.hookenv import log, WARNING, charm_dir
 
 TEMPLATES_DIR = 'templates'
 
-def find_config_parameter(key, relation_environment, config_data):
-    value = relation_environment.relation_get(key)
-    if value is None and key in config_data:
-        value = config_data[key]
-    log('Try to find parameter: %s = %s' % (key, value))
-    return value
+#def find_config_parameter(key, relation_environment, config_data):
+    #value = relation_environment.relation_get(key)
+    #if value is None and key in config_data:
+        #value = config_data[key]
+    #log('Try to find parameter: %s = %s' % (key, value))
+    #return value
 
 def render_template(template_name, context, template_dir=TEMPLATES_DIR):
     templates = jinja2.Environment(
