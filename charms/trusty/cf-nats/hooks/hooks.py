@@ -19,21 +19,21 @@ CHARM_DIR = os.environ['CHARM_DIR']
 
 def install_files():
     subprocess.check_call(
-        "/usr/bin/install", "-o", "vcap", "-g", "vcap", "-m", "0400",
-        os.path.join(CHARM_DIR, "files", "upstart", "cf-nats.conf"),
-        "/etc/init/nats.conf")
+        ["/usr/bin/install", "-o", "vcap", "-g", "vcap", "-m", "0400",
+         os.path.join(CHARM_DIR, "files", "upstart", "cf-nats.conf"),
+         "/etc/init/nats.conf"])
 
     # The package bin is borken (doesn't accept cli params)
     subprocess.check_call(
-        "/usr/bin/install", "-o", "vcap", "-g", "vcap", "-m", "0555",
-        os.path.join(CHARM_DIR, "files", "nats-server"),
-        "/usr/bin/nats-server")
+        ["/usr/bin/install", "-o", "vcap", "-g", "vcap", "-m", "0555",
+         os.path.join(CHARM_DIR, "files", "nats-server"),
+         "/usr/bin/nats-server"])
 
 
 @hooks.hook()
 def install():
     conf = hookenv.config()
-    add_source(conf['source'], conf['key'])
+    add_source(conf['source'])
     apt_update(fatal=True)
     apt_install(packages=NATS_PACKAGES, fatal=True)
     host.adduser('vcap')
@@ -68,15 +68,18 @@ def nats_relation_changed():
         'private-address', os.environ['JUJU_UNIT_NAME'])
     hookenv.relation_set(
         nats_address=address,
-        nats_port=nats_conf['nats_port'],
-        nats_user=nats_conf['nats_user'],
-        nats_password=nats_conf['nats_password'])
+        nats_port=nats_conf['port'],
+        nats_user=nats_conf['authorization']['user'],
+        nats_password=nats_conf['authorization']['password'])
 
 #################### Global variables ####################
 NATS_PACKAGES = ['cfnats']
 
 
+# Hook and context overview. The various replication and client
+# hooks interact in complex ways.
 if __name__ == '__main__':
-    # Hook and context overview. The various replication and client
-    # hooks interact in complex ways.
-    hooks.execute(sys.argv)
+    try:
+        hooks.execute(sys.argv)
+    except hookenv.UnregisteredHookError as e:
+        log('Unknown hook {} - skipping.'.format(e))

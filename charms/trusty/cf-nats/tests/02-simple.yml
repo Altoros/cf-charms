@@ -1,0 +1,11 @@
+cf-db-test:
+  series: trusty
+  services:
+    cloud-controller:
+      charm: cf-cloud-controller
+      expose: true
+    nats:
+      charm: cf-nats
+  relations:
+    - [cloud-controller, nats]
+

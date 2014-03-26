@@ -14,7 +14,6 @@ def get_nats_config(nats_conf_path=NATS_CONF_PATH):
         generate_nats_config(nats_conf_path)
     with open(nats_conf_path) as fh:
         data = yaml.safe_load(fh.read())
-    data['nats_port'] = 4022
     return data
 
 
@@ -26,6 +25,7 @@ def generate_nats_config(conf_path):
         'port': 4222,
         'logtime': True,
         'authorization': {
-            'user': user, 'password': password}}
+            'user': user,
+            'password': password}}
     host.write_file(
         conf_path, yaml.safe_dump(nats_data), perms=0400)

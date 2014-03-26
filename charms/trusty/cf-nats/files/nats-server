@@ -1,0 +1,2 @@
+#!/bin/sh
+BUNDLE_GEMFILE=/var/lib/cloudfoundry/cfnats/Gemfile bundle exec nats-server $@
