@@ -16,7 +16,7 @@ mkdir -p $repo/trusty
 
 echo "Checking out cf charms"
 git clone https://github.com/Altoros/cf-charms.git
-cd cf-charms && git checkout dev && cd ..
+cd cf-charms && git checkout sprint && cd ..
 
 cp -Rf cf-charms/charms/trusty/* $repo/trusty
 
