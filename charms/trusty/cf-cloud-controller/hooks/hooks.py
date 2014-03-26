@@ -24,13 +24,13 @@ def emit_cloud_controller_config():
     config_items = ['nats_address', 'nats_port', 'nats_user', 'nats_password',
                     'domain', 'default_organization', 'cc_ip', 'cc_port']
 
-    emit_config('cloud_controller', config_items, local_state,
+    emit_config(config_items, local_state,
                 'cloud_controller_ng.yml', CC_CONFIG_FILE)
 
 
 def emit_nginx_config():
     config_items = ['nginx_port']
-    emit_config('nginx', config_items, local_state,
+    emit_config(config_items, local_state,
                 'nginx.conf', NGINX_CONFIG_FILE)
 
 

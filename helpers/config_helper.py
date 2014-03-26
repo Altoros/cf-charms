@@ -10,6 +10,7 @@ TEMPLATES_DIR = 'templates'
     #log('Try to find parameter: %s = %s' % (key, value))
     #return value
 
+
 def render_template(template_name, context, template_dir=TEMPLATES_DIR):
     templates = jinja2.Environment(
         loader=jinja2.FileSystemLoader(template_dir))
